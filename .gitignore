@@ -1,34 +1,8 @@
-# Configuration locale et secrets
 .env
-.env.*
-!.env.example
-src/config/database.local.php
-
-# Dépendances éventuelles
-vendor/
-node_modules/
-
-# Fichiers générés localement
-cache/
-tmp/
-logs/
+includes/database.local.php
 *.log
-
-# Sauvegardes de base de données
-database/backups/
-*.sql.gz
-*.dump
-
-# Rapports de tests et couverture
-coverage/
-.phpunit.result.cache
-
-# Éditeurs
 .idea/
 .vscode/
-*.code-workspace
-
-# Système
 .DS_Store
 Thumbs.db
 desktop.ini
