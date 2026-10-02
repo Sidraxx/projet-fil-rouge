@@ -6,13 +6,26 @@ require_once __DIR__ . '/config.php';
 
 session_start();
 
-function respond(bool $success, string $message): never
+function respond(bool $success, string $message, ?string $redirect = null): never
 {
     http_response_code($success ? 200 : 400);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => $success, 'message' => $message], JSON_UNESCAPED_UNICODE);
+    echo json_encode([
+      'success' => $success,
+      'message' => $message,
+      'redirect' => $redirect,
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+  if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+      'authenticated' => isset($_SESSION['user_id']),
+      'redirect' => 'auth.php',
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = json_decode(file_get_contents('php://input'), true);
@@ -55,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $db->lastInsertId();
             $_SESSION['username'] = $username;
-            respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.');
+            respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'index.html');
         }
 
         if ($action === 'login') {
@@ -72,7 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];
-            respond(true, 'Connexion réussie. Votre prochaine carte vous attend.');
+            respond(true, 'Connexion réussie. Votre prochaine carte vous attend.', 'index.html');
+
         }
 
         respond(false, 'Action inconnue.');
@@ -198,6 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         const response = await fetch('auth.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: form.dataset.action, ...data }) });
         const result = await response.json();
         message.textContent = result.message || 'Une erreur est survenue.'; message.className = `message ${result.success ? 'success' : 'error'}`;
+        if (result.success && result.redirect) { window.location.assign(result.redirect); }
       } catch (error) { message.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.'; message.className = 'message error'; } finally { submit.disabled = false; }
     }));
   </script>
