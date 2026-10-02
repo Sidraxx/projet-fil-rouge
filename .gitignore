@@ -1,3 +1,4 @@
+cinema_mysql.sql
 .env
 includes/database.local.php
 *.log
