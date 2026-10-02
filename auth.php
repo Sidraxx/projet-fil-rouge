@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         respond(false, 'Action inconnue.');
     } catch (PDOException $exception) {
-        respond(false, 'Impossible de joindre la base « cinema ». Vérifiez que MySQL est démarré dans WAMP.');
+        respond(false, 'Impossible de joindre la base « ' . DB_NAME . ' ». Vérifiez que MySQL est démarré dans WAMP.');
     }
 }
 ?>

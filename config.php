@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 const DB_HOST = 'localhost';
-const DB_NAME = 'cinema';
+const DB_NAME = 'bdd_abs_cin';
 const DB_USER = 'root';
 const DB_PASSWORD = '';
 
