@@ -1,0 +1,8 @@
+.env
+includes/database.local.php
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
