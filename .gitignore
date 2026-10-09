@@ -1,4 +1,5 @@
 cinema_mysql.sql
+bdd_abs_cin.sql
 .env
 includes/database.local.php
 *.log
