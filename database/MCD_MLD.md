@@ -120,6 +120,96 @@ erDiagram
     battles ||--o{ battle_actions : battle_id
     users ||--o{ battle_actions : user_id
     user_cards ||--o{ battle_actions : user_card_id
+
+    users {
+        INT id PK
+        VARCHAR username UK
+        VARCHAR email UK
+        VARCHAR password_hash
+        ENUM role
+        INT currency_balance
+        BOOLEAN tutorial_completed
+        TIMESTAMP created_at
+    }
+    movies {
+        INT id PK
+        VARCHAR title
+        YEAR released_year
+        VARCHAR genre
+        DECIMAL imdb_rating
+        VARCHAR director
+    }
+    user_cards {
+        BIGINT id PK
+        INT user_id FK
+        INT movie_id FK
+        ENUM rarity
+        SMALLINT attack
+        SMALLINT defense
+        ENUM obtained_from
+    }
+    decks {
+        INT id PK
+        INT user_id FK
+        VARCHAR name
+        BOOLEAN is_active
+    }
+    deck_cards {
+        INT deck_id PK, FK
+        BIGINT user_card_id PK, FK
+        TINYINT position UK
+    }
+    pack_types {
+        INT id PK
+        VARCHAR name UK
+        INT price
+        TINYINT cards_count
+        BOOLEAN is_active
+    }
+    pack_openings {
+        BIGINT id PK
+        INT user_id FK
+        INT pack_type_id FK
+        INT price_paid
+        TIMESTAMP opened_at
+    }
+    pack_opening_cards {
+        BIGINT pack_opening_id PK, FK
+        BIGINT user_card_id PK, FK
+    }
+    currency_transactions {
+        BIGINT id PK
+        INT user_id FK
+        INT amount
+        ENUM transaction_type
+        VARCHAR description
+    }
+    battles {
+        BIGINT id PK
+        ENUM mode
+        ENUM status
+        INT winner_user_id FK
+        TIMESTAMP started_at
+        TIMESTAMP ended_at
+    }
+    battle_players {
+        BIGINT battle_id PK, FK
+        INT user_id FK
+        INT deck_id FK
+        ENUM side PK
+        BOOLEAN is_ai
+        SMALLINT remaining_hp
+        ENUM result
+    }
+    battle_actions {
+        BIGINT id PK
+        BIGINT battle_id FK
+        INT turn_number
+        INT user_id FK
+        BIGINT user_card_id FK
+        ENUM action_type
+        JSON action_details
+    }
 ```
 
 ### Tables
