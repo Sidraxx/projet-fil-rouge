@@ -18,14 +18,48 @@ function respond(bool $success, string $message, ?string $redirect = null): neve
     exit;
 }
 
-  if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
       'authenticated' => isset($_SESSION['user_id']),
       'redirect' => 'auth.php',
     ], JSON_UNESCAPED_UNICODE);
     exit;
-  }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['action']) && isset($_SESSION['user_id'])) {
+    header('Location: index.php');
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'logout') {
+    $token = (string) ($_POST['csrf_token'] ?? '');
+    $expected = (string) ($_SESSION['csrf_token'] ?? '');
+
+    if ($expected !== '' && hash_equals($expected, $token)) {
+        $_SESSION = [];
+
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'],
+                $params['domain'],
+                (bool) $params['secure'],
+                (bool) $params['httponly']
+            );
+        }
+
+        session_destroy();
+        header('Location: auth.php');
+        exit;
+    }
+
+    header('Location: index.php');
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = json_decode(file_get_contents('php://input'), true);
@@ -68,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $db->lastInsertId();
             $_SESSION['username'] = $username;
-            respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'index.html');
+            respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'index.php');
         }
 
         if ($action === 'login') {
@@ -85,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];
-            respond(true, 'Connexion réussie. Votre prochaine carte vous attend.', 'index.html');
+            respond(true, 'Connexion réussie. Votre prochaine carte vous attend.', 'index.php');
 
         }
 
