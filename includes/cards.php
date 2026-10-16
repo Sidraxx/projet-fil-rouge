@@ -90,8 +90,19 @@ function draw_pack_cards(PDO $db, int $count = 5): array
             'rarity' => $level,
             'rarityKey' => $catalog[$level]['key'],
             'color' => $catalog[$level]['color'],
+            'slot' => $slot,
         ];
     }
+
+    $order = array_flip(array_keys($catalog));
+    usort($cards, static function (array $left, array $right) use ($order): int {
+        return [$order[$left['rarity']], $left['slot']] <=> [$order[$right['rarity']], $right['slot']];
+    });
+
+    foreach ($cards as &$card) {
+        unset($card['slot']);
+    }
+    unset($card);
 
     return $cards;
 }
