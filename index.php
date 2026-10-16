@@ -5,12 +5,16 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/layout.php';
 
 require_login();
+require_once __DIR__ . '/includes/packs.php';
 
-$packsAvailable = 10;
-$packsLimit = 10;
+$packState = refresh_pack_state(database(), (int) $_SESSION['user_id']);
+$packsAvailable = $packState['available'];
+$packsLimit = PACK_LIMIT;
+$nextIn = $packState['next_in'];
 
 render_start('Ouvrir un paquet', 'packs');
 ?>
+  <link rel="stylesheet" href="assets/css/cards.css">
   <style>
     #pack.is-opening { animation: pack-open .72s ease; }
     @keyframes pack-open {
@@ -27,7 +31,8 @@ render_start('Ouvrir un paquet', 'packs');
     <p class="mt-3 text-center text-sm text-stone-400">Découvrez 5 nouvelles cartes de cinéma</p>
     <button id="how-link" class="mt-3 text-sm font-medium text-mint hover:text-emerald-300" type="button">Comment ça marche ?</button>
 
-    <button id="open-pack" class="group relative mt-12 border-0 bg-transparent p-0" type="button" aria-label="Ouvrir le paquet">
+    <div id="pack-stage" class="flex w-full flex-col items-center">
+    <button id="open-pack" class="group relative mt-12 border-0 bg-transparent p-0 disabled:cursor-wait" type="button" aria-label="Ouvrir le paquet">
       <span class="pointer-events-none absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-200/25 blur-3xl transition group-hover:bg-amber-100/40"></span>
       <span id="pack" class="relative block transition duration-300 group-hover:-translate-y-1">
         <svg class="h-auto w-52 drop-shadow-[0_18px_40px_rgba(0,0,0,.55)] sm:w-60" viewBox="0 0 220 300" role="img" aria-hidden="true">
@@ -57,9 +62,19 @@ render_start('Ouvrir un paquet', 'packs');
     <p id="pack-status" class="mt-6 min-h-5 text-center text-sm text-stone-500" role="status" aria-live="polite"></p>
 
     <div class="mt-2 w-full max-w-xs rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4 text-center">
-      <p class="text-lg font-semibold text-mint"><?= $packsAvailable ?> / <?= $packsLimit ?></p>
+      <p id="pack-count" class="text-lg font-semibold text-mint" data-available="<?= $packsAvailable ?>" data-limit="<?= $packsLimit ?>" data-next-in="<?= $nextIn ?? '' ?>"><?= $packsAvailable ?> / <?= $packsLimit ?></p>
       <p class="mt-0.5 text-xs text-stone-500">paquets disponibles</p>
+      <p id="pack-next" class="mt-1 text-xs text-stone-500"></p>
     </div>
+    </div>
+
+    <section id="reveal-stage" class="mt-10 hidden w-full max-w-6xl" aria-live="polite">
+      <p id="reveal-summary" class="text-center text-sm text-stone-400"></p>
+      <div id="card-row" class="card-row"></div>
+      <div class="text-center">
+        <button id="reveal-close" class="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-stone-200 hover:bg-white/5" type="button">Retour</button>
+      </div>
+    </section>
   </main>
 
   <dialog id="how-it-works" class="w-[min(100%-2rem,28rem)] rounded-2xl border border-white/10 bg-[#161616] p-0 text-stone-100 shadow-2xl backdrop:bg-black/70">
