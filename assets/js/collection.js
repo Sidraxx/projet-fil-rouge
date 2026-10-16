@@ -6,6 +6,20 @@ const cards = [...document.querySelectorAll('[data-card]')];
 const resultCount = document.querySelector('#result-count');
 const emptyState = document.querySelector('#collection-empty');
 const selectionButton = document.querySelector('#selection-button');
+const movieDialog = document.querySelector('#movie-dialog');
+const movieDialogClose = movieDialog.querySelector('[data-movie-dialog-close]');
+const movieDialogPoster = document.querySelector('#movie-dialog-poster');
+const movieDialogRarity = document.querySelector('#movie-dialog-rarity');
+const movieDialogEyebrow = document.querySelector('#movie-dialog-eyebrow');
+const movieDialogTitle = document.querySelector('#movie-dialog-title');
+const movieDialogImdb = document.querySelector('#movie-dialog-imdb');
+const movieDialogMeta = document.querySelector('#movie-dialog-meta');
+const movieDialogRuntime = document.querySelector('#movie-dialog-runtime');
+const movieDialogOverview = document.querySelector('#movie-dialog-overview');
+const movieDialogDirector = document.querySelector('#movie-dialog-director');
+const movieDialogCast = document.querySelector('#movie-dialog-cast');
+const movieDialogPopularity = document.querySelector('#movie-dialog-popularity');
+const movieDialogCollection = document.querySelector('#movie-dialog-collection');
 
 let activeRarity = 'all';
 let selectionMode = false;
@@ -81,6 +95,47 @@ function renderSelectionButton() {
     : 'Terminer la sélection';
 }
 
+function formatDate(value) {
+  if (!value) return 'Date inconnue';
+
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(value.replace(' ', 'T')));
+}
+
+function openMovieDialog(card) {
+  const movie = JSON.parse(card.dataset.movieDetails);
+  const votes = movie.votes ? new Intl.NumberFormat('fr-FR').format(movie.votes) : null;
+  const gross = movie.gross
+    ? new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(movie.gross)
+    : null;
+
+  movieDialogPoster.src = movie.poster || '';
+  movieDialogPoster.alt = `Affiche du film ${movie.title}`;
+  movieDialogRarity.textContent = movie.rarity || 'Rareté inconnue';
+  movieDialogEyebrow.textContent = [movie.year, movie.genre].filter(Boolean).join(' · ');
+  movieDialogTitle.textContent = movie.title;
+  movieDialogImdb.textContent = movie.imdbRating ? `${movie.imdbRating}/10` : '—';
+  movieDialogMeta.textContent = movie.metaScore ? `${Math.round(movie.metaScore)}/100` : '—';
+  movieDialogRuntime.textContent = movie.runtime ? `${movie.runtime} min` : '—';
+  movieDialogOverview.textContent = movie.overview || 'Aucun synopsis disponible.';
+  movieDialogDirector.textContent = movie.director || 'Non renseigné';
+  movieDialogCast.textContent = movie.cast.length > 0 ? movie.cast.join(', ') : 'Non renseignée';
+  movieDialogPopularity.textContent = [votes && `${votes} votes`, gross && `${gross} de recettes`]
+    .filter(Boolean)
+    .join(' · ') || 'Non renseignée';
+  movieDialogCollection.textContent = `${movie.quantity} exemplaire${Number(movie.quantity) > 1 ? 's' : ''} · obtenu le ${formatDate(movie.addedAt)}`;
+
+  movieDialog.showModal();
+  document.body.classList.add('overflow-hidden');
+}
+
 searchInput.addEventListener('input', renderCollection);
 sortSelect.addEventListener('change', renderCollection);
 
@@ -107,13 +162,17 @@ cards.forEach((card) => {
   });
 
   card.addEventListener('click', () => {
-    if (!selectionMode) return;
-    card.dataset.selected = String(card.dataset.selected !== 'true');
-    renderSelectionButton();
+    if (selectionMode) {
+      card.dataset.selected = String(card.dataset.selected !== 'true');
+      renderSelectionButton();
+      return;
+    }
+
+    openMovieDialog(card);
   });
 
   card.addEventListener('keydown', (event) => {
-    if (!selectionMode || (event.key !== 'Enter' && event.key !== ' ')) return;
+    if (event.target.closest('[data-favorite-toggle]') || (event.key !== 'Enter' && event.key !== ' ')) return;
     event.preventDefault();
     card.click();
   });
@@ -129,6 +188,16 @@ selectionButton.addEventListener('click', () => {
   }
 
   renderSelectionButton();
+});
+
+movieDialogClose.addEventListener('click', () => movieDialog.close());
+
+movieDialog.addEventListener('click', (event) => {
+  if (event.target === movieDialog) movieDialog.close();
+});
+
+movieDialog.addEventListener('close', () => {
+  document.body.classList.remove('overflow-hidden');
 });
 
 renderCollection();
