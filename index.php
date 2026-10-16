@@ -5,9 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/layout.php';
 
 require_login();
+require_once __DIR__ . '/includes/packs.php';
 
-$packsAvailable = 10;
-$packsLimit = 10;
+$packState = refresh_pack_state(database(), (int) $_SESSION['user_id']);
+$packsAvailable = $packState['available'];
+$packsLimit = PACK_LIMIT;
+$nextIn = $packState['next_in'];
 
 render_start('Ouvrir un paquet', 'packs');
 ?>
@@ -59,8 +62,9 @@ render_start('Ouvrir un paquet', 'packs');
     <p id="pack-status" class="mt-6 min-h-5 text-center text-sm text-stone-500" role="status" aria-live="polite"></p>
 
     <div class="mt-2 w-full max-w-xs rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4 text-center">
-      <p class="text-lg font-semibold text-mint"><?= $packsAvailable ?> / <?= $packsLimit ?></p>
+      <p id="pack-count" class="text-lg font-semibold text-mint" data-available="<?= $packsAvailable ?>" data-limit="<?= $packsLimit ?>" data-next-in="<?= $nextIn ?? '' ?>"><?= $packsAvailable ?> / <?= $packsLimit ?></p>
       <p class="mt-0.5 text-xs text-stone-500">paquets disponibles</p>
+      <p id="pack-next" class="mt-1 text-xs text-stone-500"></p>
     </div>
     </div>
 

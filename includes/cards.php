@@ -49,6 +49,22 @@ function format_imdb(mixed $rating): string
     return number_format((float) $rating, 1, ',', '');
 }
 
+function save_cards_to_collection(PDO $db, int $userId, array $cards): void
+{
+    $statement = $db->prepare(
+        'INSERT INTO user_cards (user_id, movie_id, quantity)
+         VALUES (:user_id, :movie_id, 1)
+         ON DUPLICATE KEY UPDATE quantity = quantity + 1'
+    );
+
+    foreach ($cards as $card) {
+        $statement->execute([
+            'user_id' => $userId,
+            'movie_id' => $card['id'],
+        ]);
+    }
+}
+
 function draw_pack_cards(PDO $db, int $count = 5): array
 {
     $available = (int) $db->query('SELECT COUNT(*) FROM movies WHERE rarity_level IS NOT NULL')->fetchColumn();

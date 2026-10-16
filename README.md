@@ -25,8 +25,9 @@ Aucun framework n'est utilisé.
 3. Importer `cinema_mysql.sql` dans phpMyAdmin.
 4. Exécuter `database/clean_movies.sql`.
 5. Exécuter `database/rarity.sql`.
-6. Vérifier que `validation_donnees` et `validation_rarete` valent `OK`.
-7. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
+6. Exécuter `database/user_pack_state.sql` (table des paquets disponibles par utilisateur).
+7. Vérifier que `validation_donnees` et `validation_rarete` valent `OK`.
+8. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
 Le projet utilise la base MySQL `cinema`. Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
 

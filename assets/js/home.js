@@ -25,6 +25,45 @@ let opening = false;
 let revealTimers = [];
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+const packCount = document.querySelector('#pack-count');
+const packNext = document.querySelector('#pack-next');
+const PACK_LIMIT = Number(packCount.dataset.limit);
+const PACK_REFILL_MS = 5 * 60 * 1000;
+let packsAvailable = Number(packCount.dataset.available);
+let nextPackAt = packCount.dataset.nextIn !== '' ? Date.now() + Number(packCount.dataset.nextIn) * 1000 : null;
+
+function formatRemaining(ms) {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+function renderPacks() {
+  packCount.textContent = `${packsAvailable} / ${PACK_LIMIT}`;
+  openPack.disabled = !opening && packsAvailable <= 0;
+  if (nextPackAt === null || packsAvailable >= PACK_LIMIT) {
+    packNext.textContent = '';
+  } else {
+    packNext.textContent = `Prochain paquet dans ${formatRemaining(nextPackAt - Date.now())}`;
+  }
+}
+
+function setPackState(available, nextIn) {
+  packsAvailable = available;
+  nextPackAt = typeof nextIn === 'number' ? Date.now() + nextIn * 1000 : null;
+  renderPacks();
+}
+
+function tickPacks() {
+  if (nextPackAt !== null && packsAvailable < PACK_LIMIT && Date.now() >= nextPackAt) {
+    packsAvailable += 1;
+    nextPackAt = packsAvailable < PACK_LIMIT ? nextPackAt + PACK_REFILL_MS : null;
+  }
+  renderPacks();
+}
+
+renderPacks();
+window.setInterval(tickPacks, 1000);
+
 function wait(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -194,6 +233,9 @@ async function playOpen() {
       wait(reduceMotion ? 0 : 720),
     ]);
     const result = await response.json();
+    if (typeof result.packsAvailable === 'number') {
+      setPackState(result.packsAvailable, result.nextIn ?? null);
+    }
     if (!response.ok || !result.success || !Array.isArray(result.cards)) {
       status.textContent = result.message || 'Le tirage a échoué.';
       return;
@@ -204,7 +246,7 @@ async function playOpen() {
     status.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.';
   } finally {
     opening = false;
-    openPack.disabled = false;
+    openPack.disabled = packsAvailable <= 0;
   }
 }
 
