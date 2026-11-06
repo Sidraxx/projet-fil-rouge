@@ -10,7 +10,7 @@ function app_navigation(): array
         ['key' => 'packs', 'label' => 'Paquets', 'file' => 'index.php'],
         ['key' => 'collection', 'label' => 'Collection', 'file' => 'collection.php'],
         ['key' => 'catalog', 'label' => 'Toutes les cartes', 'file' => 'catalog.php'],
-        ['key' => 'deck', 'label' => 'Deck', 'file' => null],
+        ['key' => 'deck', 'label' => 'Deck', 'file' => 'deck.php'],
         ['key' => 'battle', 'label' => 'Combat', 'file' => null],
         ['key' => 'profile', 'label' => 'Profil', 'file' => 'profile.php'],
         ['key' => 'settings', 'label' => 'Paramètres', 'file' => 'settings.php'],
