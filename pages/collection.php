@@ -94,9 +94,10 @@ render_start('Collection', 'collection', '../');
         <?php foreach ($movies as $movie): ?>
           <?php
           $style = $rarityStyles[$movie['rarity']];
+          $poster = movie_poster_url($movie['poster']);
           $movieDetails = json_encode([
               'title' => $movie['title'],
-              'poster' => $movie['poster'],
+              'poster' => $poster,
               'year' => $movie['year'],
               'genre' => $movie['genre'],
               'rarity' => $movie['rarity'],
@@ -130,7 +131,7 @@ render_start('Collection', 'collection', '../');
             class="group relative overflow-hidden rounded-2xl border bg-[#111312] outline-none transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-mint/70 data-[selected=true]:border-mint data-[selected=true]:ring-2 data-[selected=true]:ring-mint/30 <?= $style['frame'] ?>"
           >
             <div class="relative aspect-[2/3] overflow-hidden bg-stone-900">
-              <img src="<?= e($movie['poster']) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+              <img src="<?= e($poster) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
               <div class="absolute left-2 top-2 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur <?= $style['badge'] ?>"><?= e($movie['rarity']) ?></div>
               <?php if ($movie['quantity'] > 1): ?>
                 <div class="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">x<?= $movie['quantity'] ?></div>
