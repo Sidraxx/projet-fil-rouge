@@ -6,7 +6,7 @@ Le projet est réalisé par Hugo, Antonio et Siloe dans le cadre de leur formati
 
 ## État actuel
 
-L'authentification, la base initiale de 1 000 films, le nettoyage des données et le calcul des raretés sont en place. Le reste du parcours du MVP reste à développer.
+L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés et le combat contre le système sont en place.
 
 ## Stack
 
@@ -33,6 +33,12 @@ Le projet utilise la base MySQL `cinema`. Avec la configuration WAMP par défaut
 
 Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP.
 
+## Combat
+
+La page `pages/combat.php` permet de sélectionner quatre cartes possédées et de lancer un combat contre une équipe générée par le système. L'état du combat est conservé dans la session PHP pendant la partie.
+
+Le moteur `includes/combat.php` applique les règles de `regle.txt` : énergie commune de 5 points au départ, récupération passive de 3 points au début de chaque tour avec un maximum de 12, concentration (+2 énergie une fois par tour), attaques de toutes les cartes vivantes, sélection explicite des cibles, profils des 16 genres avec résistances et faiblesses, bonus de genre de +/- 25 %, passifs, soins plafonnés, poison, boucliers, affaiblissements et victoire après élimination des quatre cartes adverses.
+
 ## Résultats attendus pour les données
 
 - 1 000 films importés ;
@@ -58,7 +64,9 @@ projet-fil-rouge/
 |-- database/
 |-- documents/
 |-- includes/
+|   |-- combat.php
 |-- pages/
+|-- combat.php
 |-- auth.php
 |-- config.php
 |-- cinema_mysql.sql

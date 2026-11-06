@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'logou
             setcookie(
                 session_name(),
                 '',
-                time() - 42000,
+                time() - 5000,
                 $params['path'],
                 $params['domain'],
                 (bool) $params['secure'],

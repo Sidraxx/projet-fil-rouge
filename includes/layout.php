@@ -11,7 +11,7 @@ function app_navigation(): array
         ['key' => 'collection', 'label' => 'Collection', 'file' => 'collection.php'],
         ['key' => 'catalog', 'label' => 'Toutes les cartes', 'file' => null],
         ['key' => 'deck', 'label' => 'Deck', 'file' => null],
-        ['key' => 'battle', 'label' => 'Combat', 'file' => null],
+        ['key' => 'battle', 'label' => 'Combat', 'file' => 'combat.php'],
         ['key' => 'profile', 'label' => 'Profil', 'file' => 'profile.php'],
         ['key' => 'settings', 'label' => 'Paramètres', 'file' => 'settings.php'],
     ];
@@ -48,6 +48,9 @@ function render_start(string $title, string $active, string $root = ''): void
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <?php if ($active === 'battle'): ?>
+  <link rel="stylesheet" href="<?= e($root) ?>assets/css/combat.css">
+  <?php endif; ?>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
