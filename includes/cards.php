@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 function rarity_catalog(): array
 {
     return [
@@ -91,10 +93,7 @@ function draw_pack_cards(PDO $db, int $count = 5): array
             throw new RuntimeException('Tirage impossible pour ' . $level . '.');
         }
 
-        $poster = (string) ($movie['poster_link'] ?? '');
-        if (!preg_match('#^https?://#i', $poster)) {
-            $poster = '';
-        }
+        $poster = movie_poster_url($movie['poster_link'] ?? null);
 
         $cards[] = [
             'id' => (int) $movie['id'],

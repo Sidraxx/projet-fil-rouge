@@ -6,14 +6,6 @@ require_once __DIR__ . '/../includes/layout.php';
 
 require_login('../');
 
-function catalog_poster_url(?string $url): string
-{
-    $source = (string) $url;
-    $highResolution = preg_replace('/\._V1_.*\.jpg$/', '._V1_FMjpg_UX600_.jpg', $source);
-
-    return $highResolution ?: $source;
-}
-
 $rarityStyles = [
     'Légendaire' => ['badge' => 'border-amber-400/50 bg-amber-400/15 text-amber-300', 'frame' => 'border-amber-400/45', 'dot' => 'bg-amber-300'],
     'Épique' => ['badge' => 'border-violet-500/45 bg-violet-500/15 text-violet-300', 'frame' => 'border-violet-500/40', 'dot' => 'bg-violet-400'],
@@ -197,7 +189,7 @@ render_start('Toutes les cartes', 'catalog', '../');
           <?php foreach ($movies as $movie): ?>
             <?php
             $style = $rarityStyles[$movie['rarity']] ?? $rarityStyles['Commune'];
-            $poster = catalog_poster_url($movie['poster']);
+            $poster = movie_poster_url($movie['poster']);
             $movieDetails = json_encode([
                 'title' => $movie['title'],
                 'poster' => $poster,
