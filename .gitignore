@@ -8,3 +8,6 @@ includes/database.local.php
 .DS_Store
 Thumbs.db
 desktop.ini
+vendor/
+.phpunit.cache/
+.phpunit.result.cache
