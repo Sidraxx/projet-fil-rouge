@@ -13,6 +13,23 @@ function e(?string $value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function movie_poster_url(?string $url): string
+{
+    $source = trim((string) $url);
+
+    if (!preg_match('#^https?://#i', $source)) {
+        return '';
+    }
+
+    $highResolution = preg_replace(
+        '/\._V1_[^?#]*\.(?:jpe?g|webp)(?=([?#]|$))/i',
+        '._V1_FMjpg_UX600_.jpg',
+        $source
+    );
+
+    return $highResolution ?: $source;
+}
+
 function ensure_csrf_token(): string
 {
     if (empty($_SESSION['csrf_token'])) {

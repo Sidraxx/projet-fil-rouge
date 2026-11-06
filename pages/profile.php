@@ -125,6 +125,10 @@ $collectionStatement = database()->prepare(
 );
 $collectionStatement->execute(['user_id' => $_SESSION['user_id']]);
 $collectionCards = $collectionStatement->fetchAll();
+foreach ($collectionCards as &$collectionCard) {
+    $collectionCard['poster'] = movie_poster_url($collectionCard['poster']);
+}
+unset($collectionCard);
 $uniqueCards = count($collectionCards);
 
 $showcaseStatement = database()->prepare(
@@ -147,6 +151,7 @@ $showcaseStatement->execute(['user_id' => $_SESSION['user_id']]);
 $showcaseCards = [];
 
 foreach ($showcaseStatement->fetchAll() as $showcaseCard) {
+    $showcaseCard['poster'] = movie_poster_url($showcaseCard['poster']);
     $showcaseCards[(int) $showcaseCard['slot_position']] = $showcaseCard;
 }
 
