@@ -138,53 +138,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <title>Absolute Cinema | TCG de cartes de films</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-  <style>
-    :root { --black: #070707; --panel: #11110f; --soft: #191816; --line: #2c2a25; --muted: #8c887d; --text: #f5f0e6; --gold: #c9a45c; --gold-light: #f1d38d; --danger: #df9081; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: var(--black); color: var(--text); font-family: Manrope, sans-serif; }
-    body::before { position: fixed; inset: 0; z-index: -1; background: radial-gradient(circle at 77% 14%, rgba(201, 164, 92, .1), transparent 27%), linear-gradient(128deg, #060606 10%, #11110f 58%, #080808); content: ""; }
-    .shell { display: grid; grid-template-columns: minmax(320px, .92fr) minmax(430px, 1.08fr); min-height: 100vh; }
-    .brand-side { position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: clamp(28px, 5vw, 76px); border-right: 1px solid rgba(255,255,255,.08); overflow: hidden; }
-    .brand-side::after { position: absolute; right: -120px; bottom: 11%; width: 360px; height: 360px; border: 1px solid rgba(201,164,92,.24); border-radius: 50%; box-shadow: 0 0 0 38px rgba(201,164,92,.025), 0 0 0 76px rgba(201,164,92,.018); content: ""; }
-    .brand { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 12px; color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: .2em; text-decoration: none; text-transform: uppercase; }
-    .brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--gold); color: var(--gold-light); font-family: Georgia, serif; font-size: 17px; font-weight: 400; letter-spacing: 0; }
-    .intro { position: relative; z-index: 1; max-width: 510px; padding: 70px 0 40px; }
-    .eyebrow { display: flex; align-items: center; gap: 12px; color: var(--gold-light); font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
-    .eyebrow::before { width: 34px; height: 1px; background: var(--gold); content: ""; }
-    h1 { max-width: 520px; margin: 22px 0 24px; font-family: "Playfair Display", Georgia, serif; font-size: clamp(43px, 5vw, 77px); font-weight: 500; line-height: 1.03; }
-    .intro p { max-width: 410px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.9; }
-    .side-note { position: relative; z-index: 1; display: flex; justify-content: space-between; max-width: 440px; padding-top: 18px; border-top: 1px solid var(--line); color: #66635b; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
-    .form-side { display: grid; align-items: center; padding: clamp(30px, 8vw, 110px); }
-    .auth-panel { width: min(100%, 480px); margin: auto; animation: rise .7s ease both; }
-    .panel-header { margin-bottom: 34px; }
-    .panel-header h2 { margin: 0 0 9px; font-size: 25px; font-weight: 600; }
-    .panel-header p { margin: 0; color: var(--muted); font-size: 13px; }
-    .tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 30px; border-bottom: 1px solid var(--line); }
-    .tab { position: relative; padding: 0 0 15px; border: 0; background: transparent; color: #68655e; cursor: pointer; font: inherit; font-size: 12px; text-align: left; }
-    .tab::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: transparent; content: ""; }
-    .tab.active { color: var(--gold-light); }
-    .tab.active::after { background: var(--gold); }
-    .form { display: none; }
-    .form.active { display: block; animation: fade .25s ease both; }
-    .field { margin-bottom: 19px; }
-    label { display: block; margin-bottom: 8px; color: #b7b3a8; font-family: "DM Mono", monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
-    input { width: 100%; padding: 15px 16px; border: 1px solid var(--line); border-radius: 0; outline: 0; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; }
-    input:focus { border-color: var(--gold); background: var(--soft); }
-    .password-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .submit { display: flex; width: 100%; align-items: center; justify-content: center; gap: 12px; margin-top: 27px; padding: 16px 20px; border: 1px solid var(--gold); border-radius: 0; background: var(--gold); color: #15120c; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; transition: background .2s ease, transform .2s ease; }
-    .submit:hover { background: var(--gold-light); transform: translateY(-2px); }
-    .submit:disabled { cursor: wait; opacity: .65; transform: none; }
-    .submit span { font-size: 17px; line-height: 0; }
-    .message { min-height: 20px; margin: 19px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-    .message.error { color: var(--danger); }
-    .message.success { color: var(--gold-light); }
-    .legal { margin-top: 38px; color: #5e5b55; font-size: 10px; line-height: 1.7; text-align: center; }
-    @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-    @media (max-width: 780px) { .shell { display: block; } .brand-side { min-height: 420px; padding: 26px; border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08); } .intro { padding: 50px 0 25px; } h1 { font-size: clamp(43px, 12vw, 68px); } .form-side { padding: 52px 26px 64px; } }
-    @media (max-width: 420px) { .password-row { grid-template-columns: 1fr; gap: 0; } }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/auth.css">
 </head>
 <body>
   <main class="shell">
