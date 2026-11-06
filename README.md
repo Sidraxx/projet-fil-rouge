@@ -33,6 +33,40 @@ Le projet utilise la base MySQL `cinema`. Avec la configuration WAMP par défaut
 
 Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP.
 
+## Lancer les tests
+
+Les tests utilisent PHPUnit et une base dédiée `cinema_test`, reconstruite automatiquement à chaque exécution : la base `cinema` de l'application n'est jamais touchée.
+
+### Sur Windows (WAMP)
+
+```bash
+composer install       # une seule fois ; composer s'installe depuis https://getcomposer.org
+vendor/bin/phpunit     # toutes les suites ; sous CMD/PowerShell : php vendor\phpunit\phpunit\phpunit
+```
+
+### Sur macOS
+
+```bash
+# Prérequis (une seule fois)
+brew install php composer mysql
+brew services start mysql      # MySQL doit tourner sur localhost:3306
+
+# Dépendances des tests (une seule fois)
+composer install
+
+# Exécution, depuis la racine du projet
+vendor/bin/phpunit             # toutes les suites
+vendor/bin/phpunit --testsuite unit   # suite rapide de fumée
+```
+
+Si MySQL local utilise un autre port ou des identifiants différents de `root` sans mot de passe :
+
+```bash
+TEST_DB_PORT=8889 TEST_DB_USER=moi TEST_DB_PASSWORD='secret' vendor/bin/phpunit
+```
+
+Les détails (overrides d'identifiants, organisation des suites) sont dans [tests/README.md](tests/README.md).
+
 ## Résultats attendus pour les données
 
 - 1 000 films importés ;
@@ -59,8 +93,11 @@ projet-fil-rouge/
 |-- documents/
 |-- includes/
 |-- pages/
+|-- tests/
 |-- auth.php
+|-- composer.json
 |-- config.php
+|-- phpunit.xml
 |-- cinema_mysql.sql
 |-- README.md
 `-- DOCUMENTATION.md
