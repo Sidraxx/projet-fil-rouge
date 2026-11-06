@@ -5,7 +5,26 @@ const countEl = document.querySelector('#deck-count');
 const validityEl = document.querySelector('#deck-validity');
 const feedbackEl = document.querySelector('#deck-feedback');
 const deckList = document.querySelector('#deck-list');
-const deckEmptyMessage = deckList.dataset.emptyMessage;
+const deckSelect = document.querySelector('#deck-select');
+const deckTitle = document.querySelector('#deck-title');
+const deckActiveBadge = document.querySelector('#deck-active-badge');
+
+const deckNewButton = document.querySelector('#deck-new');
+const deckRenameButton = document.querySelector('#deck-rename');
+const deckActivateButton = document.querySelector('#deck-activate');
+const deckDeleteButton = document.querySelector('#deck-delete');
+
+const deckNameDialog = document.querySelector('#deck-name-dialog');
+const deckNameForm = document.querySelector('#deck-name-form');
+const deckNameTitle = document.querySelector('#deck-name-title');
+const deckNameInput = document.querySelector('#deck-name-input');
+const deckNameError = document.querySelector('#deck-name-error');
+const deckNameSubmit = document.querySelector('#deck-name-submit');
+
+const deckDeleteDialog = document.querySelector('#deck-delete-dialog');
+const deckDeleteName = document.querySelector('#deck-delete-name');
+const deckDeleteError = document.querySelector('#deck-delete-error');
+const deckDeleteConfirm = document.querySelector('#deck-delete-confirm');
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -13,6 +32,9 @@ const rules = {
   size: Number(countEl.dataset.size || 10),
   copies: 2,
 };
+
+const currentDeckId = Number(deckSelect.dataset.current);
+const currentDeckName = deckTitle.dataset.name || '';
 
 // État local : cartes possédées (movieId -> exemplaires) et composition du deck.
 const owned = new Map();
@@ -46,6 +68,20 @@ function deckCount() {
   return total;
 }
 
+function deckPage(deckId = null) {
+  const target = new URL(window.location.href);
+  if (deckId) {
+    target.searchParams.set('deck', String(deckId));
+  } else {
+    target.searchParams.delete('deck');
+  }
+  return target.href;
+}
+
+function navigate(deckId = null) {
+  window.location.href = deckPage(deckId);
+}
+
 function renderValidity() {
   const count = deckCount();
   const valid = count === rules.size;
@@ -69,7 +105,7 @@ function renderDeckList() {
   if (deck.size === 0) {
     const empty = document.createElement('li');
     empty.className = 'rounded-xl border border-dashed border-white/10 px-3 py-6 text-center text-xs text-stone-500';
-    empty.textContent = deckEmptyMessage;
+    empty.textContent = deckList.dataset.emptyMessage;
     deckList.append(empty);
     return;
   }
@@ -104,15 +140,21 @@ function renderDeckList() {
 
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
-    removeButton.dataset.removeDeck = '';
     removeButton.className = 'shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300';
     removeButton.textContent = 'Retirer';
-
-    removeButton.addEventListener('click', () => sendAction('remove', Number(movieId)));
+    removeButton.addEventListener('click', () => sendCardAction('remove', Number(movieId)));
 
     item.append(poster, info, quantity, removeButton);
     deckList.append(item);
   });
+}
+
+function updateDeckCounts(count) {
+  // Met à jour l'entrée du deck courant dans le sélecteur (6/10 -> 7/10).
+  const option = deckSelect.querySelector(`option[value="${currentDeckId}"]`);
+  if (option) {
+    option.textContent = option.textContent.replace(/\(\d+\/\d+\)/, `(${count}/${rules.size})`);
+  }
 }
 
 function renderAvailable() {
@@ -138,7 +180,7 @@ function renderAvailable() {
   availableEmpty.classList.toggle('hidden', visibleCount !== 0);
 }
 
-async function sendAction(action, movieId) {
+async function postDeckApi(payload) {
   let response;
   try {
     response = await fetch('../deck-api.php', {
@@ -147,21 +189,26 @@ async function sendAction(action, movieId) {
         'Content-Type': 'application/json',
         'X-CSRF-Token': csrfToken,
       },
-      body: JSON.stringify({ action, movieId }),
+      body: JSON.stringify(payload),
     });
   } catch {
     showFeedback('Connexion impossible. Vérifiez le serveur.');
-    return;
+    return null;
   }
 
-  const result = await response.json();
+  const result = await response.json().catch(() => null);
 
-  if (!response.ok || !result.success) {
-    showFeedback(result.message || 'L\'action a échoué.');
-    return;
+  if (!response.ok || !result?.success) {
+    showFeedback(result?.message || 'L\'action a échoué.');
+    return null;
   }
 
   hideFeedback();
+  return result;
+}
+
+async function sendCardAction(action, movieId) {
+  const result = await postDeckApi({ action, movieId, deckId: currentDeckId });
 
   deck.clear();
   (result.cards || []).forEach((card) => {
@@ -175,6 +222,7 @@ async function sendAction(action, movieId) {
 
   if (typeof result.size === 'number') rules.size = result.size;
 
+  updateDeckCounts(result.count);
   renderDeckList();
   renderAvailable();
   renderValidity();
@@ -189,12 +237,93 @@ function hideFeedback() {
   feedbackEl.classList.add('hidden');
 }
 
+// Gestion des decks : bascule, création, renommage et suppression.
+deckSelect.addEventListener('change', () => {
+  navigate(Number(deckSelect.value));
+});
+
+deckNewButton.addEventListener('click', () => {
+  deckNameTitle.textContent = 'Nouveau deck';
+  deckNameSubmit.textContent = 'Créer';
+  deckNameError.classList.add('hidden');
+  deckNameForm.dataset.action = 'create';
+  deckNameInput.value = '';
+  deckNameDialog.showModal();
+  deckNameInput.focus();
+});
+
+deckRenameButton.addEventListener('click', () => {
+  deckNameTitle.textContent = 'Renommer le deck';
+  deckNameSubmit.textContent = 'Renommer';
+  deckNameError.classList.add('hidden');
+  deckNameForm.dataset.action = 'rename';
+  deckNameInput.value = currentDeckName;
+  deckNameDialog.showModal();
+  deckNameInput.select();
+});
+
+deckActivateButton.addEventListener('click', async () => {
+  const result = await postDeckApi({ action: 'switch', deckId: currentDeckId });
+  if (result) navigate(currentDeckId);
+});
+
+deckDeleteButton.addEventListener('click', () => {
+  deckDeleteName.textContent = currentDeckName;
+  deckDeleteError.classList.add('hidden');
+  deckDeleteDialog.showModal();
+});
+
+deckDeleteConfirm.addEventListener('click', async () => {
+  if (deckSelect.options.length <= 1) {
+    deckDeleteError.textContent = 'Impossible de supprimer votre dernier deck.';
+    deckDeleteError.classList.remove('hidden');
+    return;
+  }
+  const result = await postDeckApi({ action: 'delete', deckId: currentDeckId });
+  if (result) navigate(null);
+});
+
+deckNameForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const name = deckNameInput.value.trim();
+  if (name === '') {
+    deckNameError.textContent = 'Donnez un nom à votre deck (60 caractères maximum).';
+    deckNameError.classList.remove('hidden');
+    return;
+  }
+
+  deckNameSubmit.disabled = true;
+  const result = await postDeckApi({
+    action: deckNameForm.dataset.action,
+    deckId: currentDeckId,
+    name,
+  });
+  deckNameSubmit.disabled = false;
+
+  if (result) {
+    deckNameDialog.close();
+    navigate(deckNameForm.dataset.action === 'create' ? result.deckId : currentDeckId);
+  }
+});
+
+['deck-name-cancel', 'deck-delete-cancel'].forEach((id) => {
+  document.querySelector(`#${id}`).addEventListener('click', () => {
+    document.querySelector(id === 'deck-name-cancel' ? '#deck-name-dialog' : '#deck-delete-dialog').close();
+  });
+});
+
+[deckNameDialog, deckDeleteDialog].forEach((dialog) => {
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+});
+
 searchInput.addEventListener('input', renderAvailable);
 
 availableGrid.querySelectorAll('[data-add-deck]').forEach((button) => {
   button.addEventListener('click', () => {
     const host = button.closest('[data-available-card]');
-    sendAction('add', Number(host.dataset.movieId));
+    sendCardAction('add', Number(host.dataset.movieId));
   });
 });
 

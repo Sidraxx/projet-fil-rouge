@@ -10,7 +10,20 @@ require_login('../');
 $db = database();
 $userId = (int) $_SESSION['user_id'];
 
-$deckId = get_or_create_deck($db, $userId);
+// Deck affiché : celui demandé (?deck=N) s'il appartient au joueur, sinon l'actif.
+$requestedDeckId = (int) ($_GET['deck'] ?? 0);
+$deckId = $requestedDeckId > 0 && deck_belongs_to_user($db, $userId, $requestedDeckId)
+    ? $requestedDeckId
+    : get_or_create_deck($db, $userId);
+
+$decks = load_user_decks($db, $userId);
+$deck = $decks[0] ?? null;
+foreach ($decks as $deckRow) {
+    if ($deckRow['id'] === $deckId) {
+        $deck = $deckRow;
+        break;
+    }
+}
 $status = deck_status($db, $deckId);
 $available = load_deck_available_cards($db, $userId, $deckId);
 $deckCards = load_deck_cards($db, $deckId);
@@ -30,13 +43,38 @@ render_start('Deck', 'deck', '../');
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Constructeur</p>
-          <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Mon deck</h1>
+          <h1 class="mt-2 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+            <span id="deck-title" data-name="<?= e((string) $deck['name']) ?>"><?= e((string) $deck['name']) ?></span>
+            <?php if ($deck['is_active']): ?>
+              <span class="rounded-full border border-mint/50 bg-mint/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-mint" id="deck-active-badge" data-active="true">Actif</span>
+            <?php else: ?>
+              <span class="hidden rounded-full border border-mint/50 bg-mint/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-mint" id="deck-active-badge" data-active="false">Actif</span>
+            <?php endif; ?>
+          </h1>
           <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-500">
             <span>Choisissez les cartes de votre collection qui composeront votre deck.</span>
-            <?php foreach (deck_rules() as $label => $value): ?>
-              <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500"><?= $label === 'size' ? 'Deck max' : 'Doublons max' ?> : <?= $value ?></span>
-            <?php endforeach; ?>
+            <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Deck max : <?= DECK_MAX_SIZE ?></span>
+            <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Doublons max : <?= DECK_MAX_COPIES ?></span>
+            <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Decks max : <?= DECK_MAX_COUNT ?></span>
           </p>
+        </div>
+        <div class="flex flex-col items-stretch gap-2 sm:items-end">
+          <div class="flex items-center gap-2">
+            <select id="deck-select" data-current="<?= $deckId ?>" aria-label="Choisir le deck à éditer" class="rounded-xl border border-mint/40 bg-[#171918] px-3 py-2.5 text-sm font-semibold text-stone-200 outline-none transition hover:border-mint/60 focus:border-mint focus:ring-2 focus:ring-mint/15">
+              <?php foreach ($decks as $deckRow): ?>
+                <option class="bg-[#0c0d0d]" value="<?= $deckRow['id'] ?>" <?= $deckRow['id'] === $deckId ? 'selected' : '' ?>>
+                  <?= e((string) $deckRow['name']) ?> (<?= $deckRow['cards'] ?>/<?= DECK_MAX_SIZE ?>)<?= $deckRow['is_active'] ? ' · Actif' : '' ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <button id="deck-new" type="button" class="rounded-xl border border-mint/40 bg-mint/10 px-3 py-2.5 text-sm font-semibold text-mint transition hover:border-mint hover:bg-mint/20">Nouveau</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="deck-rename" type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-stone-300 transition hover:border-white/20 hover:bg-white/10">Renommer</button>
+            <button id="deck-activate" type="button" <?= $deck['is_active'] ? 'disabled' : '' ?> class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-stone-300 transition hover:border-mint/50 hover:text-mint disabled:cursor-default disabled:opacity-40"><?= $deck['is_active'] ? 'Deck actif' : 'Utiliser au combat' ?></button>
+            <button id="deck-delete" type="button" class="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-300 transition hover:border-red-500/50 hover:bg-red-500/20">Supprimer</button>
+          </div>
+          <p class="text-xs text-stone-500">Le deck actif est celui utilisé au combat.</p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4">
           <p class="text-center text-lg font-semibold text-mint"><span id="deck-count" data-size="<?= $status['size'] ?>"><?= $status['count'] ?></span> / <?= $status['size'] ?></p>
@@ -123,5 +161,32 @@ render_start('Deck', 'deck', '../');
       </div>
     </div>
   </main>
+
+  <dialog id="deck-name-dialog" class="w-[min(100%-2rem,24rem)] rounded-2xl border border-white/10 bg-[#161616] p-0 text-stone-100 shadow-2xl backdrop:bg-black/70">
+    <form id="deck-name-form" class="p-6">
+      <h2 id="deck-name-title" class="text-lg font-semibold">Nouveau deck</h2>
+      <label class="mt-4 block">
+        <span class="font-mono text-[9px] uppercase tracking-wider text-stone-500">Nom du deck (60 caractères max.)</span>
+        <input id="deck-name-input" type="text" maxlength="60" required class="mt-2 w-full rounded-xl border border-white/10 bg-[#171918] px-4 py-2.5 text-sm text-stone-100 outline-none transition placeholder:text-stone-600 focus:border-mint/60 focus:ring-2 focus:ring-mint/10" placeholder="Mon deck de Drama">
+      </label>
+      <p class="mt-1.5 hidden text-xs text-red-400" id="deck-name-error" role="alert"></p>
+      <div class="mt-6 flex justify-end gap-2">
+        <button type="button" id="deck-name-cancel" class="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-stone-200 hover:bg-white/5">Annuler</button>
+        <button type="submit" id="deck-name-submit" class="rounded-full bg-mint px-4 py-2 text-sm font-semibold text-black">Créer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="deck-delete-dialog" class="w-[min(100%-2rem,24rem)] rounded-2xl border border-white/10 bg-[#161616] p-0 text-stone-100 shadow-2xl backdrop:bg-black/70">
+    <div class="p-6">
+      <h2 class="text-lg font-semibold">Supprimer ce deck ?</h2>
+      <p class="mt-3 text-sm leading-6 text-stone-400">« <span id="deck-delete-name"></span> » et toutes ses cartes seront supprimés. Cette action est définitive.</p>
+      <p id="deck-delete-error" class="mt-2 hidden text-xs text-red-400" role="alert"></p>
+      <div class="mt-6 flex justify-end gap-2">
+        <button type="button" id="deck-delete-cancel" class="rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-stone-200 hover:bg-white/5">Annuler</button>
+        <button type="button" id="deck-delete-confirm" class="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white">Supprimer</button>
+      </div>
+    </div>
+  </dialog>
 <?php
 render_end('../', ['../assets/js/deck.js']);

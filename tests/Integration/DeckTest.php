@@ -53,9 +53,10 @@ final class DeckTest extends IntegrationTestCase
 
     public function testLeRenvoiDesReglesEstMesurable(): void
     {
-        self::assertSame(['size' => 10, 'copies' => 2], deck_rules());
+        self::assertSame(['size' => 10, 'copies' => 2, 'decks' => 5], deck_rules());
         self::assertSame(10, DECK_MAX_SIZE);
         self::assertSame(2, DECK_MAX_COPIES);
+        self::assertSame(5, DECK_MAX_COUNT);
     }
 
     public function testLeDeckManquantEstCreeAuPremierAcces(): void
@@ -348,5 +349,209 @@ final class DeckTest extends IntegrationTestCase
         self::assertSame(2, $availableById[$kept]['in_deck']);
         self::assertSame(1, $availableById[$removed]['owned']);
         self::assertSame(0, $availableById[$removed]['in_deck']);
+    }
+
+    public function testLeJoueurPeutCreerPlusieursDecksNommes(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $activeId = get_or_create_deck($db, $this->userId);
+            $secondId = create_deck($db, $this->userId, 'Deck Drama');
+            $thirdId = create_deck($db, $this->userId, '   '); // nom vide -> nom par défaut.
+
+            self::assertNotSame($activeId, $secondId);
+            self::assertNotSame($secondId, $thirdId);
+
+            $decks = load_user_decks($db, $this->userId);
+            $names = [];
+            foreach ($decks as $row) {
+                $names[$row['id']] = $row['name'];
+            }
+
+            // L'actif d'origine reste actif : créer un deck ne bascule pas l'actif.
+            self::assertSame(['Mon deck', 'Deck Drama', 'Mon deck'], [$names[$activeId], $names[$secondId], $names[$thirdId]]);
+            self::assertSame(3, count($decks));
+            self::assertTrue($decks[0]['is_active']);
+            self::assertSame($activeId, $decks[0]['id']);
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testLeDeckACtifEstUniqueAPresUneBascule(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $firstId = get_or_create_deck($db, $this->userId);
+            $secondId = create_deck($db, $this->userId, 'Alternative');
+
+            switch_active_deck($db, $this->userId, $secondId);
+
+            $active = $db->prepare(
+                'SELECT id FROM user_decks WHERE user_id = :user_id AND is_active = 1'
+            );
+            $active->execute(['user_id' => $this->userId]);
+
+            self::assertSame([['id' => $secondId]], $active->fetchAll());
+            self::assertSame($secondId, get_or_create_deck($db, $this->userId));
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testUnDeckSeRenommeAvecUnNomValide(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $deckId = get_or_create_deck($db, $this->userId);
+
+            rename_deck($db, $this->userId, $deckId, '  Tournoi local  ');
+
+            $name = $db->prepare('SELECT name FROM user_decks WHERE id = :id');
+            $name->execute(['id' => $deckId]);
+            self::assertSame('Tournoi local', $name->fetchColumn());
+
+            // Nom trop long : ramené à 60 caractères, sans erreur.
+            rename_deck($db, $this->userId, $deckId, str_repeat('x', 200));
+            $name->execute(['id' => $deckId]);
+            self::assertSame(60, mb_strlen((string) $name->fetchColumn(), 'UTF-8'));
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testSupprimerUnDeckReactiveLePlusAncienRestant(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $firstId = get_or_create_deck($db, $this->userId);
+            add_card_to_deck($db, $firstId, $this->userId, $this->giveMovie());
+            $secondId = create_deck($db, $this->userId, 'Second');
+            $thirdId = create_deck($db, $this->userId, 'Troisième');
+
+            // Actif actuel : le premier deck. On bascule puis on supprime :
+            // le plus ancien restant doit redevenir actif.
+            switch_active_deck($db, $this->userId, $thirdId);
+            delete_deck($db, $this->userId, $thirdId);
+
+            $decks = load_user_decks($db, $this->userId);
+            self::assertSame(2, count($decks));
+
+            $activeId = 0;
+            foreach ($decks as $row) {
+                if ($row['is_active']) {
+                    $activeId = $row['id'];
+                }
+            }
+            self::assertSame($firstId, $activeId, 'Le plus ancien deck restant doit redevenir actif.');
+
+            // Les cartes du deck supprimé disparaisent avec lui.
+            $cards = $db->prepare('SELECT COUNT(*) FROM deck_cards WHERE deck_id = :deck_id');
+            $cards->execute(['deck_id' => $thirdId]);
+            self::assertSame(0, (int) $cards->fetchColumn());
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testLeDernierDeckNePeutPasEtreSupprime(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            $deckId = get_or_create_deck($db, $this->userId);
+
+            try {
+                delete_deck($db, $this->userId, $deckId);
+                self::fail('Le dernier deck doit être conservé.');
+            } catch (RuntimeException $error) {
+                self::assertStringContainsString('dernier deck', $error->getMessage());
+            }
+
+            self::assertTrue(deck_belongs_to_user($db, $this->userId, $deckId));
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testLesDecksDEtrangersNeSontPasManipulables(): void
+    {
+        $otherUserId = TestDatabase::createUser('autre_joueur');
+        $db = $this->db();
+
+        $db->beginTransaction();
+        try {
+            $foreignDeckId = get_or_create_deck($db, $otherUserId);
+
+            try {
+                require_user_deck($db, $this->userId, $foreignDeckId);
+                self::fail('Le deck d\'un autre joueur doit être refusé.');
+            } catch (RuntimeException $error) {
+                self::assertStringContainsString('n\'existe pas', $error->getMessage());
+            }
+
+            try {
+                rename_deck($db, $this->userId, $foreignDeckId, 'Piraté');
+                self::fail('Renommer le deck d\'un autre joueur doit être refusé.');
+            } catch (RuntimeException $error) {
+                self::assertStringContainsString('n\'existe pas', $error->getMessage());
+            }
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testLaLimiteDeDecksSapplique(): void
+    {
+        $db = $this->db();
+        $db->beginTransaction();
+        try {
+            for ($i = 0; $i < DECK_MAX_COUNT - 1; $i++) {
+                create_deck($db, $this->userId, 'Deck ' . ($i + 1));
+            }
+
+            // Le cinquième deck est accepté, le sixième est refusé.
+            create_deck($db, $this->userId, 'Dernier deck');
+            self::assertSame(DECK_MAX_COUNT, user_deck_count($db, $this->userId));
+
+            try {
+                create_deck($db, $this->userId, 'Trop de decks');
+                self::fail('La limite de decks doit être refusée.');
+            } catch (RuntimeException $error) {
+                self::assertStringContainsString('decks atteinte', $error->getMessage());
+            }
+        } finally {
+            $db->rollBack();
+        }
+    }
+
+    public function testLesCartesRestentParDeck(): void
+    {
+        $movieId = $this->giveMovie(2);
+        $db = $this->db();
+
+        $db->beginTransaction();
+        try {
+            $firstId = get_or_create_deck($db, $this->userId);
+            add_card_to_deck($db, $firstId, $this->userId, $movieId);
+            $secondId = create_deck($db, $this->userId, 'Second');
+            add_card_to_deck($db, $secondId, $this->userId, $movieId);
+
+            // La même carte vit dans deux decks sans interférer.
+            self::assertSame(1, deck_card_count($db, $firstId));
+            self::assertSame(1, deck_card_count($db, $secondId));
+            self::assertSame($movieId, load_deck_cards($db, $firstId)[0]['id']);
+            self::assertSame($movieId, load_deck_cards($db, $secondId)[0]['id']);
+
+            remove_card_from_deck($db, $firstId, $movieId);
+            self::assertSame(0, deck_card_count($db, $firstId));
+            self::assertSame(1, deck_card_count($db, $secondId));
+        } finally {
+            $db->rollBack();
+        }
     }
 }

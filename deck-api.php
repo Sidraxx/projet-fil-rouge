@@ -32,23 +32,82 @@ $userId = (int) $_SESSION['user_id'];
 
 $data = json_decode((string) file_get_contents('php://input'), true) ?: [];
 $movieId = (int) ($data['movieId'] ?? 0);
+$deckId = (int) ($data['deckId'] ?? 0);
+$name = (string) ($data['name'] ?? '');
 $action = (string) ($data['action'] ?? '');
 
-if ($action !== 'add' && $action !== 'remove') {
+$deckActions = ['add', 'remove', 'create', 'rename', 'switch', 'delete'];
+if (!in_array($action, $deckActions, true)) {
     deck_json(400, ['success' => false, 'message' => 'Action inconnue.']);
-}
-
-if ($movieId <= 0) {
-    deck_json(400, ['success' => false, 'message' => 'Carte invalide.']);
 }
 
 try {
     $db->beginTransaction();
-    $deckId = get_or_create_deck($db, $userId);
+
+    // Gestion des decks : création, renommage, bascule et suppression.
+    if ($action === 'create') {
+        $createdId = create_deck($db, $userId, $name);
+        $decks = load_user_decks($db, $userId);
+        $db->commit();
+
+        deck_json(200, [
+            'success' => true,
+            'deckId' => $createdId,
+            'decks' => $decks,
+        ]);
+    }
+
+    if ($action === 'rename') {
+        rename_deck($db, $userId, $deckId, $name);
+        $decks = load_user_decks($db, $userId);
+        $db->commit();
+
+        deck_json(200, [
+            'success' => true,
+            'deckId' => $deckId,
+            'decks' => $decks,
+        ]);
+    }
+
+    if ($action === 'switch') {
+        switch_active_deck($db, $userId, $deckId);
+        $db->commit();
+
+        deck_json(200, [
+            'success' => true,
+            'deckId' => $deckId,
+        ]);
+    }
+
+    if ($action === 'delete') {
+        delete_deck($db, $userId, $deckId);
+        $activeId = get_or_create_deck($db, $userId);
+        $decks = load_user_decks($db, $userId);
+        $db->commit();
+
+        deck_json(200, [
+            'success' => true,
+            'deckId' => $activeId,
+            'decks' => $decks,
+        ]);
+    }
+
+    // Ajout / retrait : le deck visé est celui transmis, sinon le deck actif.
+    if ($deckId > 0) {
+        require_user_deck($db, $userId, $deckId);
+    } else {
+        $deckId = get_or_create_deck($db, $userId);
+    }
 
     if ($action === 'add') {
+        if ($movieId <= 0) {
+            throw new RuntimeException('Carte invalide.');
+        }
         add_card_to_deck($db, $deckId, $userId, $movieId);
     } else {
+        if ($movieId <= 0) {
+            throw new RuntimeException('Carte invalide.');
+        }
         remove_card_from_deck($db, $deckId, $movieId);
     }
 
