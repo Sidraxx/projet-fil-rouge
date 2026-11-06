@@ -22,6 +22,7 @@ final class TestDatabase
         __DIR__ . '/../../database/rarity.sql',
         __DIR__ . '/../../database/user_cards.sql',
         __DIR__ . '/../../database/user_pack_state.sql',
+        __DIR__ . '/../../database/user_decks.sql',
     ];
 
     private static ?PDO $connection = null;
@@ -134,6 +135,8 @@ final class TestDatabase
     public static function resetUsers(): void
     {
         $db = self::connection();
+        $db->exec('DELETE FROM deck_cards');
+        $db->exec('DELETE FROM user_decks');
         $db->exec('DELETE FROM user_pack_state');
         $db->exec('DELETE FROM user_favorites');
         $db->exec('DELETE FROM user_cards');

@@ -21,7 +21,7 @@ vendor/bin/phpunit --testsuite functional
 
 ## Base de données de test
 
-- Le bootstrap (`tests/bootstrap.php`) **recrée `cinema_test` à chaque exécution** : import de `cinema_mysql.sql`, puis `clean_movies.sql`, `rarity.sql`, `user_cards.sql` et `user_pack_state.sql`.
+- Le bootstrap (`tests/bootstrap.php`) **recrée `cinema_test` à chaque exécution** : import de `cinema_mysql.sql`, puis `clean_movies.sql`, `rarity.sql`, `user_cards.sql`, `user_pack_state.sql` et `user_decks.sql`.
 - Chaque test d'intégration hérite de `tests/Support/IntegrationTestCase.php`, qui vide les tables utilisateurs avant chaque test (isolation).
 - Les scripts SQL du projet ciblent `USE cinema;` en dur : le support `tests/Support/TestDatabase.php` réécrit cette référence vers `cinema_test` à l'import.
 
@@ -48,7 +48,7 @@ tests/
 |   |-- TestDatabase.php     # création de cinema_test, helpers (createUser, resetUsers)
 |   `-- IntegrationTestCase.php  # classe de base des tests avec MySQL
 |-- Unit/                    # fonctions PHP, sans effet de bord applicatif
-|-- Integration/             # logique avec MySQL (packs, tirage, collections)
+|-- Integration/             # logique avec MySQL (packs, tirage, collections, decks)
 `-- Functional/              # endpoints HTTP et parcours complet
 ```
 

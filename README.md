@@ -6,7 +6,7 @@ Le projet est réalisé par Hugo, Antonio et Siloe dans le cadre de leur formati
 
 ## État actuel
 
-L'authentification, la base initiale de 1 000 films, le nettoyage des données et le calcul des raretés sont en place. Le reste du parcours du MVP reste à développer.
+L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés, l'ouverture de paquets, la collection et le constructeur de deck (10 cartes, 2 exemplaires maximum par carte) sont en place. Les combats restent à développer.
 
 ## Stack
 
@@ -26,8 +26,9 @@ Aucun framework n'est utilisé.
 4. Exécuter `database/clean_movies.sql`.
 5. Exécuter `database/rarity.sql`.
 6. Exécuter `database/user_pack_state.sql` (table des paquets disponibles par utilisateur).
-7. Vérifier que `validation_donnees` et `validation_rarete` valent `OK`.
-8. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
+7. Exécuter `database/user_decks.sql` (tables du deck actif par joueur et de ses cartes).
+8. Vérifier que `validation_donnees` et `validation_rarete` valent `OK`.
+9. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
 Le projet utilise la base MySQL `cinema`. Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
 
