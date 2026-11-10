@@ -69,7 +69,8 @@ function get_or_create_deck(PDO $db, int $userId): int
     $db->prepare(
         'INSERT INTO user_decks (user_id, name, is_active)
          VALUES (:user_id, :name, 1)'
-    )->execute(['user_id' => $userId, 'name' => DECK_DEFAULT_NAME]);
+    )
+    ->execute(['user_id' => $userId, 'name' => DECK_DEFAULT_NAME]);
 
     return (int) $db->lastInsertId();
 }

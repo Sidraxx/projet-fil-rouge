@@ -379,3 +379,21 @@ document.querySelector('#focus-energy')?.addEventListener('click', () => {
 document.querySelector('#new-combat')?.addEventListener('click', () => {
   window.location.reload();
 });
+
+const rulesDialog = document.querySelector('#combat-rules');
+const rulesButton = document.querySelector('#combat-rules-button');
+const closeRulesButton = document.querySelector('#combat-rules-close');
+
+rulesButton?.addEventListener('click', () => {
+  rulesDialog.showModal();
+});
+
+closeRulesButton?.addEventListener('click', () => {
+  rulesDialog.close();
+});
+
+rulesDialog?.addEventListener('click', (event) => {
+  if (event.target === rulesDialog) {
+    rulesDialog.close();
+  }
+});

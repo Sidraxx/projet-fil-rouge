@@ -16,6 +16,88 @@
   font-weight: 700;
 }
 
+.combat-page {
+  min-height: calc(100vh - 4rem);
+}
+
+.combat-lobby-panel {
+  padding: 1.25rem;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(145deg, rgb(24 37 35 / .95), rgb(14 19 20 / .98)),
+    repeating-linear-gradient(135deg, transparent 0 12px, rgb(255 255 255 / .025) 12px 13px);
+  box-shadow: 0 1.5rem 3rem rgb(0 0 0 / .2);
+}
+
+.combat-lobby-panel__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.combat-lobby-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: .75rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: .2rem;
+}
+
+.combat-lobby-grid .combat-card {
+  min-width: 0;
+}
+
+.combat-lobby-grid .combat-card > div:first-child {
+  aspect-ratio: 4 / 5;
+}
+
+.combat-rules-button {
+  position: absolute;
+  right: .75rem;
+  top: .75rem;
+  display: grid;
+  width: 1.7rem;
+  height: 1.7rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / .25);
+  border-radius: 50%;
+  background: rgb(0 0 0 / .35);
+  color: #d6c28a;
+  font-family: "DM Mono", monospace;
+  font-weight: 700;
+}
+
+.combat-rules-dialog {
+  width: min(92vw, 32rem);
+  border: 1px solid rgb(61 220 151 / .3);
+  border-radius: 1rem;
+  padding: 0;
+  background: #101817;
+  color: #f5f5f4;
+  box-shadow: 0 2rem 5rem rgb(0 0 0 / .55);
+}
+
+.combat-rules-dialog::backdrop {
+  background: rgb(0 0 0 / .7);
+  backdrop-filter: blur(3px);
+}
+
+.combat-rules-dialog__content {
+  padding: 1.5rem;
+}
+
+.combat-rules-dialog li::marker {
+  color: #3ddc97;
+}
+
+.combat-hud {
+  position: relative;
+}
+
 #combat-board {
   max-width: 90rem;
   margin-inline: auto;
@@ -406,5 +488,44 @@
     width: 4rem;
     height: 6rem;
     flex-basis: 4rem;
+  }
+
+  .combat-lobby-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 55vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .combat-page {
+    overflow: hidden;
+  }
+
+  #combat-board {
+    height: calc(100vh - 6.5rem);
+  }
+
+  #combat-board .combat-field {
+    max-height: calc(100vh - 14rem);
+  }
+
+  #combat-board .combat-unit {
+    min-height: 8rem;
+  }
+
+  #combat-board .combat-unit__poster {
+    width: 4rem;
+    height: 6rem;
+    flex-basis: 4rem;
+  }
+
+  #combat-board .combat-player-unit__actions {
+    max-height: 4.5rem;
+    overflow: hidden;
+  }
+
+  #combat-board > .mt-5 section {
+    max-height: 5.5rem;
+    overflow: hidden;
   }
 }

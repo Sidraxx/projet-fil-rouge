@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/combat.php';
+require_once __DIR__ . '/includes/decks.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -37,17 +38,20 @@ try {
             combat_json(422, ['success' => false, 'message' => 'Sélectionnez exactement 4 cartes différentes.']);
         }
 
+        $activeDeckId = get_or_create_deck($db, (int) $_SESSION['user_id']);
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $statement = $db->prepare(
             'SELECT m.id, m.title, m.poster_link, m.genre
-             FROM user_cards uc
-             INNER JOIN movies m ON m.id = uc.movie_id
-             WHERE uc.user_id = ? AND m.id IN (' . $placeholders . ')'
+             FROM deck_cards dc
+             INNER JOIN user_decks d ON d.id = dc.deck_id
+             INNER JOIN movies m ON m.id = dc.movie_id
+             WHERE d.id = ? AND d.user_id = ? AND d.is_active = 1
+               AND m.id IN (' . $placeholders . ')'
         );
-        $statement->execute(array_merge([(int) $_SESSION['user_id']], $ids));
+        $statement->execute(array_merge([$activeDeckId, (int) $_SESSION['user_id']], $ids));
         $movies = $statement->fetchAll();
         if (count($movies) !== 4) {
-            combat_json(422, ['success' => false, 'message' => 'Une ou plusieurs cartes ne font pas partie de votre collection.']);
+            combat_json(422, ['success' => false, 'message' => 'Une ou plusieurs cartes ne font pas partie de votre deck actif.']);
         }
 
         $playerTeam = array_map('combat_card_from_movie', $movies);

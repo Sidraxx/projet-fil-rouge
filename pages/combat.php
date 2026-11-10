@@ -3,42 +3,51 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/decks.php';
 
 require_login('../');
 
-$statement = database()->prepare(
-    'SELECT m.id, m.title, m.poster_link AS poster, m.genre, m.rarity_level AS rarity, uc.quantity
-     FROM user_cards uc
-     INNER JOIN movies m ON m.id = uc.movie_id
-     WHERE uc.user_id = :user_id
-     ORDER BY m.title ASC'
-);
-$statement->execute(['user_id' => (int) $_SESSION['user_id']]);
-$cards = $statement->fetchAll();
+$db = database();
+$userId = (int) $_SESSION['user_id'];
+$activeDeckId = get_or_create_deck($db, $userId);
+$decks = load_user_decks($db, $userId);
+$activeDeck = $decks[0] ?? ['name' => 'Mon deck', 'cards' => 0];
+$cards = load_deck_cards($db, $activeDeckId);
 $hasEnoughCards = count($cards) >= 4;
 
 render_start('Combat', 'battle', '../');
 ?>
-  <main class="flex flex-1 flex-col px-4 pb-16 pt-4 sm:px-8">
+  <main class="combat-page flex flex-1 flex-col px-4 pb-8 pt-4 sm:px-8">
     <div class="mx-auto w-full max-w-7xl">
-      <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <header class="combat-lobby-header flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Combat contre le système</p>
-          <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Préparez votre équipe</h1>
-          <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-500">Sélectionnez 4 cartes. Leur genre, leurs attaques et leurs passifs seront utilisés pendant le combat.</p>
+          <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Lobby · Combat contre le système</p>
+          <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Préparez votre escouade</h1>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-500">Choisissez 4 cartes parmi celles de votre deck actif avant de rejoindre le terrain.</p>
         </div>
-        <div id="team-counter" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-stone-400">0 / 4 cartes</div>
+        <div class="flex items-center gap-2">
+          <span class="rounded-full border border-mint/30 bg-mint/10 px-4 py-2 text-sm text-mint"><?= e((string) $activeDeck['name']) ?></span>
+          <div id="team-counter" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-stone-400">0 / 4 cartes</div>
+        </div>
       </header>
 
       <section id="team-builder" class="mt-8">
         <?php if (!$hasEnoughCards): ?>
           <div class="rounded-2xl border border-dashed border-white/10 px-6 py-16 text-center">
-            <p class="text-lg font-semibold">Votre équipe n'est pas encore complète</p>
-            <p class="mt-2 text-sm text-stone-500">Obtenez au moins 4 cartes dans un paquet avant de lancer un combat.</p>
-            <a href="../index.php" class="mt-5 inline-flex rounded-full bg-mint px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300">Ouvrir un paquet</a>
+            <p class="text-lg font-semibold">Votre deck ne contient pas assez de cartes</p>
+            <p class="mt-2 text-sm text-stone-500">Ajoutez au moins 4 cartes dans votre deck actif pour lancer un combat.</p>
+            <a href="deck.php" class="mt-5 inline-flex rounded-full bg-mint px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300">Modifier mon deck</a>
           </div>
         <?php else: ?>
-          <div id="team-grid" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Cartes disponibles">
+          <div class="combat-lobby-panel">
+            <div class="combat-lobby-panel__top">
+              <div>
+                <p class="font-mono text-[10px] uppercase tracking-[0.18em] text-stone-500">Deck actif</p>
+                <h2 class="mt-1 text-xl font-semibold"><?= e((string) $activeDeck['name']) ?></h2>
+              </div>
+              <a href="deck.php" class="rounded-full border border-white/10 px-3 py-2 text-xs text-stone-300 transition hover:border-mint/40 hover:text-mint">Gérer le deck</a>
+            </div>
+            <div id="team-grid" class="combat-lobby-grid" aria-label="Cartes du deck actif">
             <?php foreach ($cards as $card): ?>
               <button
                 type="button"
@@ -61,8 +70,9 @@ render_start('Combat', 'battle', '../');
                 </div>
               </button>
             <?php endforeach; ?>
+            </div>
           </div>
-          <div class="mt-6 flex flex-col items-center gap-3">
+          <div class="mt-5 flex flex-col items-center gap-3">
             <p id="team-message" class="min-h-5 text-center text-sm text-stone-500" role="status" aria-live="polite"></p>
             <button id="start-combat" type="button" disabled class="rounded-full bg-mint px-5 py-3 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">Lancer le combat</button>
           </div>
@@ -92,6 +102,7 @@ render_start('Combat', 'battle', '../');
             <small>TOUR EN COURS</small>
             <strong id="combat-turn-label">VOTRE TOUR</strong>
           </div>
+          <button id="combat-rules-button" type="button" class="combat-rules-button" aria-haspopup="dialog">?</button>
         </div>
         <div id="combat-message" class="mt-4 min-h-6 text-sm text-stone-400" role="status"></div>
         <div class="combat-field mt-6 rounded-3xl border border-white/10 p-3 sm:p-5">
@@ -131,5 +142,24 @@ render_start('Combat', 'battle', '../');
       </section>
     </div>
   </main>
+  <dialog id="combat-rules" class="combat-rules-dialog">
+    <div class="combat-rules-dialog__content">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="font-mono text-[10px] uppercase tracking-[0.18em] text-mint">Aide du duel</p>
+          <h2 class="mt-1 text-xl font-semibold">Règles du combat</h2>
+        </div>
+        <button id="combat-rules-close" type="button" class="rounded-full border border-white/10 px-3 py-1 text-sm text-stone-300" aria-label="Fermer">×</button>
+      </div>
+      <ul class="mt-5 space-y-3 text-sm leading-5 text-stone-300">
+        <li><strong class="text-mint">Énergie :</strong> vous commencez avec 5 points, récupérez 3 points au début de chaque tour et ne pouvez pas dépasser 12.</li>
+        <li><strong class="text-mint">Actions :</strong> chaque attaque ou effet consomme l'énergie affichée sur son bouton.</li>
+        <li><strong class="text-mint">Concentration :</strong> récupère 2 points d'énergie une fois par tour.</li>
+        <li><strong class="text-mint">Cibles :</strong> cliquez sur une carte adverse pour l'attaquer ou sur une carte alliée pour la soigner ou la protéger.</li>
+        <li><strong class="text-mint">Types :</strong> les forces infligent plus de dégâts et les faiblesses en réduisent les dégâts.</li>
+        <li><strong class="text-mint">Victoire :</strong> éliminez les 4 cartes du système avant que votre équipe ne soit vaincue.</li>
+      </ul>
+    </div>
+  </dialog>
 <?php
 render_end('../', ['assets/js/combat.js']);
