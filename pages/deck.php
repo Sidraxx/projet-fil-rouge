@@ -219,5 +219,48 @@ render_start('Deck', 'deck', '../');
       </div>
     </div>
   </dialog>
+
+  <?php /* DEBUG — à supprimer une fois le problème résolu. */ ?>
+  <script>
+    (function () {
+      const tag = '[deck:debug]';
+      const selector = 'button, a, [data-deck-create], [data-add-deck], [data-remove-deck], [data-available-card], [data-deck-card]';
+
+      console.log(tag, 'page chargée', {
+        url: window.location.href,
+        readyState: document.readyState,
+        deckScriptAttendu: new URL('../assets/js/deck.js', window.location.href).href,
+      });
+
+      document.addEventListener('click', function (event) {
+        const target = event.target instanceof Element ? event.target : null;
+        const el = target ? target.closest(selector) : null;
+
+        console.log(tag, 'clic', {
+          cible: target,
+          element: el,
+          tag: el ? el.tagName : null,
+          id: el ? el.id : null,
+          dataset: el ? { ...el.dataset } : null,
+          disabled: el && 'disabled' in el ? el.disabled : null,
+          href: el ? el.getAttribute('href') : null,
+          defaultPrevented: event.defaultPrevented,
+          deckJsCharge: window.__deckJsLoaded === true,
+        });
+      }, true);
+
+      window.addEventListener('load', function () {
+        const loaded = window.__deckJsLoaded === true;
+        const tag0 = document.querySelector('script[src*="deck.js"]');
+        console.log(tag, loaded ? 'deck.js chargé ✔' : 'deck.js NON chargé ✘ (vérifiez le chemin du <script>)', {
+          balise: tag0 ? tag0.src : '(introuvable dans le DOM)',
+        });
+        if (!loaded) {
+          console.warn(tag, 'Sans deck.js aucun bouton ne répond. Script attendu :',
+            new URL('../assets/js/deck.js', window.location.href).href);
+        }
+      });
+    })();
+  </script>
 <?php
-render_end('../', ['../assets/js/deck.js']);
+render_end('../', ['assets/js/deck.js']);

@@ -1,3 +1,10 @@
+const DEBUG = true;
+const log = (...args) => { if (DEBUG) console.log('[deck.js]', ...args); };
+const warn = (...args) => { if (DEBUG) console.warn('[deck.js]', ...args); };
+
+window.__deckJsLoaded = true;
+log('script chargé', { url: window.location.href, readyState: document.readyState });
+
 const detailRoot = document.querySelector('#deck-detail');
 const searchInput = document.querySelector('#deck-search');
 const availableGrid = document.querySelector('#available-grid');
@@ -25,11 +32,29 @@ const deckDeleteName = document.querySelector('#deck-delete-name');
 const deckDeleteError = document.querySelector('#deck-delete-error');
 const deckDeleteConfirm = document.querySelector('#deck-delete-confirm');
 
-const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+if (!csrfMeta) {
+  warn('meta[name="csrf-token"] introuvable : les appels à deck-api.php échoueront (403).');
+}
+const csrfToken = csrfMeta?.content ?? '';
 
 const currentDeckId = Number(detailRoot?.dataset.deckId || 0);
 const currentDeckName = deckTitle?.dataset.name || '';
 const deckCountTotal = Number(detailRoot?.dataset.deckCount || 0);
+
+log('état initial', {
+  mode: detailRoot ? 'détail' : 'liste',
+  deckId: currentDeckId,
+  cartesDansLeDeck: deckList ? deckList.querySelectorAll('[data-deck-card]').length : 0,
+  cartesDisponibles: availableGrid ? availableGrid.querySelectorAll('[data-available-card]').length : 0,
+  boutonCreate: createButtons.length,
+  boutonRename: Boolean(deckRenameButton),
+  boutonActivate: Boolean(deckActivateButton),
+  boutonDelete: Boolean(deckDeleteButton),
+  dialogNom: Boolean(deckNameDialog),
+  dialogSuppression: Boolean(deckDeleteDialog),
+  deckApi: new URL('../deck-api.php', window.location.href).href,
+});
 
 const rules = {
   size: Number(countEl?.dataset.size || 10),
@@ -138,6 +163,13 @@ function renderDeckList() {
     item.append(card, info, removeButton);
     deckList.append(item);
   });
+
+  log('liste du deck rendue', {
+    cartes: deck.size,
+    boutonsRetirer: deckList.querySelectorAll('[data-remove-deck], button').length,
+    total: deckCount(),
+    taille: rules.size,
+  });
 }
 
 function renderAvailable() {
@@ -161,12 +193,23 @@ function renderAvailable() {
 
   availableGrid.classList.toggle('hidden', visibleCount === 0);
   availableEmpty.classList.toggle('hidden', visibleCount !== 0);
+
+  log('rendu collection', {
+    visibles: visibleCount,
+    boutonsAjouter: availableGrid.querySelectorAll('[data-add-deck]').length,
+    boutonsDesactives: availableGrid.querySelectorAll('[data-add-deck]:disabled').length,
+    cartesDansLeDeck: deckCount(),
+    tailleDeck: rules.size,
+  });
 }
 
 async function postDeckApi(payload) {
+  const url = new URL('../deck-api.php', window.location.href).href;
+  log('→ POST', url, payload);
+
   let response;
   try {
-    response = await fetch('../deck-api.php', {
+    response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -174,23 +217,35 @@ async function postDeckApi(payload) {
       },
       body: JSON.stringify(payload),
     });
-  } catch {
+  } catch (error) {
+    warn('échec réseau / requête bloquée', { url, error });
     showFeedback('Connexion impossible. Vérifiez le serveur.');
     return null;
   }
 
-  const result = await response.json().catch(() => null);
+  log('← réponse', { status: response.status, ok: response.ok, url: response.url, redirected: response.redirected });
+
+  const raw = await response.text();
+  let result = null;
+  try {
+    result = JSON.parse(raw);
+  } catch (error) {
+    warn('réponse non JSON (redirection vers login ? erreur PHP ?)', { status: response.status, body: raw.slice(0, 500), error });
+  }
 
   if (!response.ok || !result?.success) {
+    warn('action refusée', { status: response.status, payload, result, body: result ? undefined : raw.slice(0, 500) });
     showFeedback(result?.message || 'L\'action a échoué.');
     return null;
   }
 
+  log('✔ action réussie', { payload, result });
   hideFeedback();
   return result;
 }
 
 async function sendCardAction(action, movieId) {
+  log('carte →', action, { movieId, deckId: currentDeckId });
   const result = await postDeckApi({ action, movieId, deckId: currentDeckId });
   if (!result) return;
 
@@ -237,13 +292,19 @@ function openNameDialog(action) {
 
 // Création depuis la liste des decks (boutons "Nouveau").
 createButtons.forEach((button) => {
-  button.addEventListener('click', () => openNameDialog('create'));
+  button.addEventListener('click', () => {
+    log('clic bouton "Nouveau deck"');
+    openNameDialog('create');
+  });
 });
 
 deckNameForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = deckNameInput.value.trim();
+  log('soumission formulaire deck', { name, action: deckNameForm.dataset.action, deckId: currentDeckId });
+
   if (name === '') {
+    warn('nom vide, envoi annulé');
     deckNameError.textContent = 'Donnez un nom à votre deck (60 caractères maximum).';
     deckNameError.classList.remove('hidden');
     return;
@@ -260,6 +321,7 @@ deckNameForm.addEventListener('submit', async (event) => {
 
   if (result) {
     deckNameDialog.close();
+    log('redirection après', action, { deckId: result.deckId ?? currentDeckId });
     navigate(action === 'create' ? result.deckId : currentDeckId);
   }
 });
@@ -290,21 +352,28 @@ if (detailRoot) {
     owned.set(Number(el.dataset.movieId), Number(el.dataset.owned));
   });
 
-  deckRenameButton.addEventListener('click', () => openNameDialog('rename'));
+  deckRenameButton.addEventListener('click', () => {
+    log('clic "Renommer"');
+    openNameDialog('rename');
+  });
 
   deckActivateButton.addEventListener('click', async () => {
+    log('clic "Utiliser au combat"', { deckId: currentDeckId, disabled: deckActivateButton.disabled });
     const result = await postDeckApi({ action: 'switch', deckId: currentDeckId });
     if (result) navigate(currentDeckId);
   });
 
   deckDeleteButton.addEventListener('click', () => {
+    log('clic "Supprimer"', { deckId: currentDeckId, nom: currentDeckName, totalDecks: deckCountTotal });
     deckDeleteName.textContent = currentDeckName;
     deckDeleteError.classList.add('hidden');
     deckDeleteDialog.showModal();
   });
 
   deckDeleteConfirm.addEventListener('click', async () => {
+    log('confirmation suppression', { deckId: currentDeckId, totalDecks: deckCountTotal });
     if (deckCountTotal <= 1) {
+      warn('suppression refusée localement : dernier deck');
       deckDeleteError.textContent = 'Impossible de supprimer votre dernier deck.';
       deckDeleteError.classList.remove('hidden');
       return;
@@ -313,14 +382,28 @@ if (detailRoot) {
     if (result) navigate(null);
   });
 
-  searchInput.addEventListener('input', renderAvailable);
+  searchInput.addEventListener('input', () => {
+    log('recherche', { valeur: searchInput.value });
+    renderAvailable();
+  });
 
   availableGrid.querySelectorAll('[data-add-deck]').forEach((button) => {
     button.addEventListener('click', () => {
       const host = button.closest('[data-available-card]');
+      log('clic "Ajouter"', {
+        movieId: host?.dataset.movieId,
+        remaining: button.dataset.remaining,
+        disabled: button.disabled,
+      });
+      if (!host) {
+        warn('bouton "Ajouter" sans [data-available-card] parent');
+        return;
+      }
       sendCardAction('add', Number(host.dataset.movieId));
     });
   });
+
+  log('listeners du détail attachés ✔');
 
   renderDeckList();
   renderAvailable();
