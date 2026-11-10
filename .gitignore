@@ -11,3 +11,6 @@ desktop.ini
 vendor/
 .phpunit.cache/
 .phpunit.result.cache
+
+# Compteurs de limitation de débit (runtime)
+storage/

@@ -1,0 +1,20 @@
+# Durcissement Apache (WAMP). Sans effet si AllowOverride est désactivé.
+
+Options -Indexes
+
+# La méthode HTTP TRACE se désactive dans la configuration Apache (httpd.conf,
+# hors .htaccess) : ajouter « TraceEnable off » puis redémarrer Apache.
+
+# Détails techniques pour le développement local (console, page d'erreur) :
+# décommenter la ligne ci-dessous. Ne jamais l'activer en production.
+# SetEnv APP_DEBUG 1
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Dossiers internes, tests, dépendances et données : jamais servis par le web.
+RewriteRule ^(\.git|\.idea|\.vscode|\.phpunit\.cache|vendor|tests|database|storage)(/|$) - [F,L]
+
+# Fichiers de configuration, scripts SQL et dumps.
+RewriteRule (^|/)(\.gitignore|\.gitattributes|composer\.(json|lock)|phpunit\.xml|.*\.(sql|md))$ - [F,L]
+</IfModule>

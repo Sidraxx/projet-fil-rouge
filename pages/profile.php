@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/layout.php';
+require_once __DIR__ . '/../includes/rate_limit.php';
 
 require_login('../');
 
@@ -24,7 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond_profile_json(false, 'Session expirée. Rechargez la page.');
     }
 
-    $payload = json_decode((string) file_get_contents('php://input'), true);
+    $retry = rate_limit_api('profile', (string) $_SESSION['user_id'], 60);
+    if ($retry > 0) {
+        header('Retry-After: ' . $retry);
+        http_response_code(429);
+        respond_profile_json(false, 'Trop de requêtes. Patientez un instant.');
+    }
+
+    $rawBody = app_read_body();
+    if ($rawBody === null) {
+        http_response_code(413);
+        respond_profile_json(false, 'Requête trop volumineuse.');
+    }
+    $payload = json_decode($rawBody, true);
     $action = is_array($payload) ? (string) ($payload['action'] ?? '') : '';
     $slot = is_array($payload) ? (int) ($payload['slot'] ?? 0) : 0;
 

@@ -42,6 +42,12 @@ La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécu
 
 Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
 
+Pour afficher les détails techniques (console du navigateur, page d'erreur avec le fichier et la ligne), définir la variable d'environnement `APP_DEBUG=1` : décommenter `SetEnv APP_DEBUG 1` dans `.htaccess` ou la définir dans l'environnement de WAMP. Sans cette variable, les visiteurs ne voient que des messages génériques ; les logs PHP restent complets.
+
+Sécurité du serveur (WAMP) : dans `httpd.conf`, ajouter `TraceEnable off` pour désactiver la méthode HTTP TRACE, puis redémarrer Apache. Le fichier `.htaccess` interdit l'accès web à `.git`, `vendor/`, `tests/`, `database/`, `storage/` et aux fichiers `*.sql`.
+
+La connexion est limitée à 5 échecs par compte et 20 par adresse IP sur 15 minutes ; l'inscription à 5 tentatives par heure et par adresse IP. Les compteurs sont stockés dans `storage/ratelimit/` (ignoré par git).
+
 ## Lancer le projet sous macOS
 
 ```bash

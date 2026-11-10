@@ -40,7 +40,8 @@ $parameters = [];
 
 if ($search !== '') {
     $where[] = '(m.title LIKE :title_search OR m.genre LIKE :genre_search OR m.director LIKE :director_search)';
-    $searchPattern = '%' . $search . '%';
+    // « % » et « _ » sont des jokers LIKE : on les échappe pour une recherche littérale.
+    $searchPattern = '%' . addcslashes($search, '%_\\') . '%';
     $parameters['title_search'] = $searchPattern;
     $parameters['genre_search'] = $searchPattern;
     $parameters['director_search'] = $searchPattern;

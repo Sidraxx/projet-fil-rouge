@@ -2,13 +2,19 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/bootstrap.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
-session_start();
+const LOGIN_MAX_ATTEMPTS_PER_ACCOUNT = 5;
+const LOGIN_MAX_ATTEMPTS_PER_IP = 20;
+const LOGIN_WINDOW_SECONDS = 900;
+const REGISTER_MAX_ATTEMPTS = 5;
+const REGISTER_WINDOW_SECONDS = 3600;
+const DATABASE_UNAVAILABLE_MESSAGE = 'Connexion indisponible pour le moment. Réessayez plus tard.';
 
-function respond(bool $success, string $message, ?string $redirect = null): never
+function respond(bool $success, string $message, ?string $redirect = null, int $status = 0): never
 {
-    http_response_code($success ? 200 : 400);
+    http_response_code($status > 0 ? $status : ($success ? 200 : 400));
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
       'success' => $success,
@@ -16,6 +22,14 @@ function respond(bool $success, string $message, ?string $redirect = null): neve
       'redirect' => $redirect,
     ], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function respond_rate_limited(int $seconds): never
+{
+    header('Retry-After: ' . $seconds);
+    $minutes = (int) ceil($seconds / 60);
+
+    respond(false, 'Trop de tentatives. Réessayez dans ' . $minutes . ' minute' . ($minutes > 1 ? 's' : '') . '.', null, 429);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
@@ -62,13 +76,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'logou
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $rawBody = app_read_body();
+    if ($rawBody === null) {
+        respond(false, 'Requête trop volumineuse.', null, 413);
+    }
+    $payload = json_decode($rawBody, true);
     $action = is_array($payload) ? ($payload['action'] ?? '') : '';
+
+    $csrfToken = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!hash_equals(ensure_csrf_token(), $csrfToken)) {
+        respond(false, 'Session expirée. Rechargez la page.', null, 403);
+    }
 
     try {
         $db = database();
 
         if ($action === 'register') {
+            $ip = client_ip();
+            $retry = rate_limit_retry_after('register-ip', $ip, REGISTER_MAX_ATTEMPTS, REGISTER_WINDOW_SECONDS);
+            if ($retry > 0) {
+                app_log('warning', 'Inscription refusée : limite de tentatives atteinte.');
+                respond_rate_limited($retry);
+            }
+            rate_limit_hit('register-ip', $ip, REGISTER_WINDOW_SECONDS);
+
             $username = trim((string) ($payload['username'] ?? ''));
             $email = strtolower(trim((string) ($payload['email'] ?? '')));
             $password = (string) ($payload['password'] ?? '');
@@ -82,6 +113,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (strlen($password) < 8) {
                 respond(false, 'Le mot de passe doit contenir au moins 8 caractères.');
+            }
+            // bcrypt ignore tout au-delà de 72 octets : on refuse plutôt que de tronquer en silence.
+            if (strlen($password) > 72) {
+                respond(false, 'Le mot de passe ne doit pas dépasser 72 caractères.');
             }
             if ($password !== $confirmation) {
                 respond(false, 'Les mots de passe ne correspondent pas.');
@@ -100,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
             session_regenerate_id(true);
+            unset($_SESSION['csrf_token']);
             $_SESSION['user_id'] = (int) $db->lastInsertId();
             $_SESSION['username'] = $username;
             respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'index.php');
@@ -108,15 +144,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'login') {
             $email = strtolower(trim((string) ($payload['email'] ?? '')));
             $password = (string) ($payload['password'] ?? '');
+            $ip = client_ip();
+
+            $retry = max(
+                rate_limit_retry_after('login-account', $email, LOGIN_MAX_ATTEMPTS_PER_ACCOUNT, LOGIN_WINDOW_SECONDS),
+                rate_limit_retry_after('login-ip', $ip, LOGIN_MAX_ATTEMPTS_PER_IP, LOGIN_WINDOW_SECONDS)
+            );
+            if ($retry > 0) {
+                app_log('warning', 'Connexion refusée : limite de tentatives atteinte.');
+                respond_rate_limited($retry);
+            }
+
             $statement = $db->prepare('SELECT id, username, password_hash FROM users WHERE email = :email LIMIT 1');
             $statement->execute(['email' => $email]);
             $user = $statement->fetch();
 
-            if (!$user || !password_verify($password, $user['password_hash'])) {
+            // Un hachage est vérifié même si le compte n'existe pas : le temps de réponse
+            // ne révèle donc pas si l'adresse e-mail est inscrite.
+            $hash = $user ? $user['password_hash'] : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+            $passwordValid = password_verify($password, $hash);
+
+            if (!$user || !$passwordValid) {
+                rate_limit_hit('login-account', $email, LOGIN_WINDOW_SECONDS);
+                rate_limit_hit('login-ip', $ip, LOGIN_WINDOW_SECONDS);
                 respond(false, 'E-mail ou mot de passe incorrect.');
             }
 
+            rate_limit_clear('login-account', $email);
             session_regenerate_id(true);
+            unset($_SESSION['csrf_token']);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];
             respond(true, 'Connexion réussie. Votre prochaine carte vous attend.', 'index.php');
@@ -126,10 +182,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         respond(false, 'Action inconnue.');
     } catch (PDOException $exception) {
         app_log_exception($exception, 'Authentification impossible');
-        respond(false, 'Connexion à la base « ' . DB_NAME . ' » impossible : ' . describe_database_error($exception));
+        respond(false, app_debug_enabled()
+            ? 'Connexion à la base « ' . DB_NAME . ' » impossible : ' . describe_database_error($exception)
+            : DATABASE_UNAVAILABLE_MESSAGE);
     } catch (AppDatabaseException $exception) {
         // Message déjà traduit par config.php / app_database_exception().
-        respond(false, $exception->getMessage());
+        respond(false, app_debug_enabled() ? $exception->getMessage() : DATABASE_UNAVAILABLE_MESSAGE);
     } catch (Throwable $exception) {
         app_log_exception($exception, 'Authentification impossible');
         respond(false, 'Impossible de finaliser la connexion : une erreur interne est survenue.');
@@ -141,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<?= e(ensure_csrf_token()) ?>">
   <meta name="description" content="Rejoignez Absolute Cinema, le TCG de cartes de films.">
   <title>Absolute Cinema | TCG de cartes de films</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -205,7 +264,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       if (form.dataset.action === 'register' && data.password !== data.password_confirmation) { message.textContent = 'Les mots de passe ne correspondent pas.'; message.className = 'message error'; return; }
       submit.disabled = true; message.textContent = 'Chargement de votre collection...'; message.className = 'message';
       try {
-        const response = await fetch('auth.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: form.dataset.action, ...data }) });
+        const response = await fetch('auth.php', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content }, body: JSON.stringify({ action: form.dataset.action, ...data }) });
         const result = await response.json();
         if (!result.success) { console.error('[auth] action refusée :', { status: response.status, message: result.message }); }
         message.textContent = result.message || 'Une erreur est survenue.'; message.className = `message ${result.success ? 'success' : 'error'}`;

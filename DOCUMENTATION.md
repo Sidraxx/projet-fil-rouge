@@ -331,7 +331,7 @@ projet-fil-rouge/
 - Les données affichées dans le HTML sont échappées afin de limiter les injections de contenu.
 - Les formulaires sont validés côté serveur, même si une validation JavaScript existe aussi.
 - Les pages privées vérifient la présence d'une session utilisateur valide.
-- L'identifiant de session est régénéré après une connexion réussie et les cookies de session utilisent les options de sécurité disponibles dans l'environnement.
+- L'identifiant de session est régénéré après une connexion réussie. Les cookies de session sont `HttpOnly`, `SameSite=Lax`, `Secure` lorsque le site est servi en HTTPS, et le mode strict de session est activé.
 - Les actions qui modifient des données sont protégées contre les requêtes intersites avec un jeton CSRF.
 - Le serveur vérifie que l'utilisateur possède bien une collection, une carte ou un deck avant d'autoriser sa consultation ou sa modification.
 - Les identifiants MySQL locaux sont placés dans un fichier ignoré par Git.

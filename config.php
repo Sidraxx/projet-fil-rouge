@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/errors.php';
+require_once __DIR__ . '/includes/security.php';
 
 const DB_HOST = 'localhost';
 const DB_NAME = 'cinema';
@@ -47,4 +48,9 @@ function database(): PDO
     app_log('info', 'Connexion MySQL établie sur « ' . DB_NAME . ' » (' . DB_HOST . ').');
 
     return $connection;
+}
+
+if (PHP_SAPI !== 'cli') {
+    app_configure_session();
+    app_send_security_headers();
 }

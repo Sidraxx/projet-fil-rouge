@@ -15,6 +15,16 @@ declare(strict_types=1);
 
 const APP_ERROR_PREFIX = '[AbsoluteCinema]';
 
+/**
+ * Détails techniques (console, page d'erreur, messages de base) visibles
+ * seulement en développement : définir APP_DEBUG=1. En production, les
+ * visiteurs ne voient que des messages génériques ; les logs restent complets.
+ */
+function app_debug_enabled(): bool
+{
+    return (string) getenv('APP_DEBUG') === '1';
+}
+
 /** Exception « base de données » portant déjà un message compréhensible. */
 final class AppDatabaseException extends RuntimeException
 {
@@ -93,6 +103,11 @@ function app_log_exception(Throwable $exception, string $message): void
  */
 function describe_database_error(PDOException $exception): string
 {
+    // Sans APP_DEBUG, le détail (noms de tables, conseils de migration) reste dans les logs.
+    if (!app_debug_enabled()) {
+        return 'la base de données est momentanément indisponible. Réessayez dans un instant.';
+    }
+
     $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
     $code = (int) ($exception->errorInfo[1] ?? $exception->getCode());
     $database = defined('DB_NAME') ? DB_NAME : 'cinema';
@@ -143,7 +158,7 @@ function app_error_message(Throwable $error): string
 function app_console_script(): string
 {
     $payload = json_encode(
-        app_errors(),
+        app_debug_enabled() ? app_errors() : [],
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
     ) ?: '[]';
 
@@ -209,7 +224,7 @@ function app_render_fatal_page(string $message, ?Throwable $exception = null): v
 
     $safeDetails = '';
 
-    if ($exception !== null) {
+    if ($exception !== null && app_debug_enabled()) {
         $details = $exception::class . ' : ' . $exception->getMessage()
             . ' (' . $exception->getFile() . ':' . $exception->getLine() . ')';
         $safeDetails = htmlspecialchars($details, ENT_QUOTES, 'UTF-8');

@@ -67,7 +67,7 @@ render_start('Deck', 'deck', '../');
       <div class="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-sm text-amber-200" role="alert">
         <p class="font-semibold">Le constructeur de deck est momentanément indisponible.</p>
         <p class="mt-2 leading-6 text-amber-200/80"><?= e($deckError) ?></p>
-        <p class="mt-3 font-mono text-[11px] uppercase tracking-wider text-amber-200/50">Détails techniques : console du navigateur (F12) et logs PHP</p>
+        <p class="mt-3 font-mono text-[11px] uppercase tracking-wider text-amber-200/50"><?= app_debug_enabled() ? 'Détails techniques : console du navigateur (F12) et logs PHP' : 'Détails techniques : logs PHP du serveur' ?></p>
       </div>
 <?php elseif ($deck === null): ?>
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -246,48 +246,5 @@ render_start('Deck', 'deck', '../');
       </div>
     </div>
   </dialog>
-
-  <?php /* DEBUG — à supprimer une fois le problème résolu. */ ?>
-  <script>
-    (function () {
-      const tag = '[deck:debug]';
-      const selector = 'button, a, [data-deck-create], [data-add-deck], [data-remove-deck], [data-available-card], [data-deck-card]';
-
-      console.log(tag, 'page chargée', {
-        url: window.location.href,
-        readyState: document.readyState,
-        deckScriptAttendu: new URL('../assets/js/deck.js', window.location.href).href,
-      });
-
-      document.addEventListener('click', function (event) {
-        const target = event.target instanceof Element ? event.target : null;
-        const el = target ? target.closest(selector) : null;
-
-        console.log(tag, 'clic', {
-          cible: target,
-          element: el,
-          tag: el ? el.tagName : null,
-          id: el ? el.id : null,
-          dataset: el ? { ...el.dataset } : null,
-          disabled: el && 'disabled' in el ? el.disabled : null,
-          href: el ? el.getAttribute('href') : null,
-          defaultPrevented: event.defaultPrevented,
-          deckJsCharge: window.__deckJsLoaded === true,
-        });
-      }, true);
-
-      window.addEventListener('load', function () {
-        const loaded = window.__deckJsLoaded === true;
-        const tag0 = document.querySelector('script[src*="deck.js"]');
-        console.log(tag, loaded ? 'deck.js chargé ✔' : 'deck.js NON chargé ✘ (vérifiez le chemin du <script>)', {
-          balise: tag0 ? tag0.src : '(introuvable dans le DOM)',
-        });
-        if (!loaded) {
-          console.warn(tag, 'Sans deck.js aucun bouton ne répond. Script attendu :',
-            new URL('../assets/js/deck.js', window.location.href).href);
-        }
-      });
-    })();
-  </script>
 <?php
 render_end('../', ['assets/js/deck.js']);

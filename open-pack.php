@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/cards.php';
 require_once __DIR__ . '/includes/packs.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -30,6 +31,12 @@ if (!hash_equals(ensure_csrf_token(), $token)) {
 
 $db = database();
 $userId = (int) $_SESSION['user_id'];
+
+$retry = rate_limit_api('open-pack', (string) $userId, 30);
+if ($retry > 0) {
+    header('Retry-After: ' . $retry);
+    pack_json(429, ['success' => false, 'message' => 'Trop de tentatives d\'ouverture. Patientez un instant.']);
+}
 
 try {
     $db->beginTransaction();

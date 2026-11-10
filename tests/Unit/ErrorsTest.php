@@ -46,6 +46,21 @@ final class ErrorsTest extends TestCase
         );
     }
 
+    public function testSansAppDebugLesDetailsTechniquesRestentDansLesLogs(): void
+    {
+        putenv('APP_DEBUG=0');
+
+        try {
+            $message = describe_database_error($this->pdoException(['42S02', 1146, '']));
+        } finally {
+            putenv('APP_DEBUG=1');
+        }
+
+        self::assertStringNotContainsString('database/', $message);
+        self::assertStringNotContainsString('SQLSTATE', $message);
+        self::assertStringNotContainsString('1146', $message);
+    }
+
     public function testUnCodeInconnuEstSignaleSansTraceBrute(): void
     {
         $message = describe_database_error($this->pdoException(['XX000', 9999, '']));
