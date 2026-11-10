@@ -71,6 +71,27 @@ La page `pages/combat.php` permet de sélectionner quatre cartes possédées et 
 
 Le moteur `includes/combat.php` applique les règles de `regle.txt` : énergie commune de 5 points au départ, récupération passive de 3 points au début de chaque tour avec un maximum de 12, concentration (+2 énergie une fois par tour), attaques de toutes les cartes vivantes, sélection explicite des cibles, profils des 16 genres avec résistances et faiblesses, bonus de genre de +/- 25 %, passifs, soins plafonnés, poison, boucliers, affaiblissements et victoire après élimination des quatre cartes adverses.
 
+## Erreurs et diagnostics
+
+L'application n'affiche jamais de trace brute : une erreur de base est traduite en
+message lisible (bandeau dans la page) et détaillée à deux endroits :
+
+- la **console du navigateur** (F12 → Console), sous la forme
+  `Absolute Cinema — N message(s) applicatif(s)` : code MySQL (SQLSTATE), fichier
+  et ligne concernés ;
+- les **logs PHP** (`error_log`) : les mêmes informations côté serveur.
+
+La traduction des erreurs est centralisée dans `includes/errors.php`
+(`describe_database_error()`), utilisée par `config.php`, les pages et les API.
+
+Points de vigilance après un partage de base :
+
+- importer le dump **puis** rejouer les scripts de `database/` dans l'ordre du
+  README : un dump ancien ne contient pas les tables `user_decks` / `deck_cards` ;
+- se **déconnecter puis se reconnecter** après avoir importé la base d'un autre
+  joueur : la session contient encore un `user_id` qui n'existe plus (l'appli
+  redirige désormais vers la page de connexion au lieu de planter).
+
 ## Lancer les tests
 
 Les tests utilisent PHPUnit et une base dédiée `cinema_test`, reconstruite automatiquement à chaque exécution : la base `cinema` de l'application n'est jamais touchée.

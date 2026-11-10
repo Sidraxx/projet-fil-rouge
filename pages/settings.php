@@ -46,8 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $update = $db->prepare('UPDATE users SET username = :username WHERE id = :id');
             $update->execute(['username' => $username, 'id' => $_SESSION['user_id']]);
-        } catch (PDOException $exception) {
-            respond_json(false, 'Impossible d\'enregistrer le pseudo. Réessayez.');
+        } catch (Throwable $error) {
+            app_log_exception($error, 'Enregistrement du pseudo impossible (joueur ' . (int) $_SESSION['user_id'] . ')');
+
+            respond_json(false, app_error_message($error));
         }
 
         $_SESSION['username'] = $username;

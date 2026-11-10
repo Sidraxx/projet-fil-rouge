@@ -10,8 +10,22 @@ require_login('../');
 $db = database();
 $userId = (int) $_SESSION['user_id'];
 
-get_or_create_deck($db, $userId);
-$decks = load_user_decks($db, $userId);
+// La page reste utilisable même si la base est incomplète : le détail
+// technique part dans les logs et la console, l'utilisateur voit un bandeau.
+$deckError = null;
+$decks = [];
+
+try {
+    // Session obsolète (base réimportée, joueur supprimé) : retour à la connexion
+    // au lieu de laisser l'insertion du deck échouer sur la clé étrangère.
+    current_user('../');
+
+    get_or_create_deck($db, $userId);
+    $decks = load_user_decks($db, $userId);
+} catch (Throwable $error) {
+    app_log_exception($error, 'Chargement des decks impossible (joueur ' . $userId . ')');
+    $deckError = app_error_message($error);
+}
 
 // Vue détail : uniquement si ?deck=N désigne un deck du joueur, sinon la liste des decks.
 $requestedDeckId = (int) ($_GET['deck'] ?? 0);
@@ -33,16 +47,29 @@ $rarityStyles = [
 
 if ($deck !== null) {
     $deckId = (int) $deck['id'];
-    $status = deck_status($db, $deckId);
-    $available = load_deck_available_cards($db, $userId, $deckId);
-    $deckCards = load_deck_cards($db, $deckId);
+
+    try {
+        $status = deck_status($db, $deckId);
+        $available = load_deck_available_cards($db, $userId, $deckId);
+        $deckCards = load_deck_cards($db, $deckId);
+    } catch (Throwable $error) {
+        app_log_exception($error, 'Chargement du deck ' . $deckId . ' impossible (joueur ' . $userId . ')');
+        $deckError = app_error_message($error);
+        $deck = null;
+    }
 }
 
 render_start('Deck', 'deck', '../');
 ?>
   <main class="flex flex-1 flex-col px-4 pb-16 pt-4 sm:px-8">
     <div class="mx-auto w-full max-w-[1600px]">
-<?php if ($deck === null): ?>
+<?php if ($deckError !== null): ?>
+      <div class="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-sm text-amber-200" role="alert">
+        <p class="font-semibold">Le constructeur de deck est momentanément indisponible.</p>
+        <p class="mt-2 leading-6 text-amber-200/80"><?= e($deckError) ?></p>
+        <p class="mt-3 font-mono text-[11px] uppercase tracking-wider text-amber-200/50">Détails techniques : console du navigateur (F12) et logs PHP</p>
+      </div>
+<?php elseif ($deck === null): ?>
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Constructeur</p>
@@ -219,5 +246,48 @@ render_start('Deck', 'deck', '../');
       </div>
     </div>
   </dialog>
+
+  <?php /* DEBUG — à supprimer une fois le problème résolu. */ ?>
+  <script>
+    (function () {
+      const tag = '[deck:debug]';
+      const selector = 'button, a, [data-deck-create], [data-add-deck], [data-remove-deck], [data-available-card], [data-deck-card]';
+
+      console.log(tag, 'page chargée', {
+        url: window.location.href,
+        readyState: document.readyState,
+        deckScriptAttendu: new URL('../assets/js/deck.js', window.location.href).href,
+      });
+
+      document.addEventListener('click', function (event) {
+        const target = event.target instanceof Element ? event.target : null;
+        const el = target ? target.closest(selector) : null;
+
+        console.log(tag, 'clic', {
+          cible: target,
+          element: el,
+          tag: el ? el.tagName : null,
+          id: el ? el.id : null,
+          dataset: el ? { ...el.dataset } : null,
+          disabled: el && 'disabled' in el ? el.disabled : null,
+          href: el ? el.getAttribute('href') : null,
+          defaultPrevented: event.defaultPrevented,
+          deckJsCharge: window.__deckJsLoaded === true,
+        });
+      }, true);
+
+      window.addEventListener('load', function () {
+        const loaded = window.__deckJsLoaded === true;
+        const tag0 = document.querySelector('script[src*="deck.js"]');
+        console.log(tag, loaded ? 'deck.js chargé ✔' : 'deck.js NON chargé ✘ (vérifiez le chemin du <script>)', {
+          balise: tag0 ? tag0.src : '(introuvable dans le DOM)',
+        });
+        if (!loaded) {
+          console.warn(tag, 'Sans deck.js aucun bouton ne répond. Script attendu :',
+            new URL('../assets/js/deck.js', window.location.href).href);
+        }
+      });
+    })();
+  </script>
 <?php
-render_end('../', ['../assets/js/deck.js']);
+render_end('../', ['assets/js/deck.js']);

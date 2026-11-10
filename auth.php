@@ -125,7 +125,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         respond(false, 'Action inconnue.');
     } catch (PDOException $exception) {
-        respond(false, 'Impossible de joindre la base « ' . DB_NAME . ' ». Vérifiez que MySQL est démarré dans WAMP.');
+        app_log_exception($exception, 'Authentification impossible');
+        respond(false, 'Connexion à la base « ' . DB_NAME . ' » impossible : ' . describe_database_error($exception));
+    } catch (AppDatabaseException $exception) {
+        // Message déjà traduit par config.php / app_database_exception().
+        respond(false, $exception->getMessage());
+    } catch (Throwable $exception) {
+        app_log_exception($exception, 'Authentification impossible');
+        respond(false, 'Impossible de finaliser la connexion : une erreur interne est survenue.');
     }
 }
 ?>
@@ -200,10 +207,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       try {
         const response = await fetch('auth.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: form.dataset.action, ...data }) });
         const result = await response.json();
+        if (!result.success) { console.error('[auth] action refusée :', { status: response.status, message: result.message }); }
         message.textContent = result.message || 'Une erreur est survenue.'; message.className = `message ${result.success ? 'success' : 'error'}`;
         if (result.success && result.redirect) { window.location.assign(result.redirect); }
-      } catch (error) { message.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.'; message.className = 'message error'; } finally { submit.disabled = false; }
+      } catch (error) { console.error('[auth] requête impossible (serveur PHP arrêté ?) :', error); message.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.'; message.className = 'message error'; } finally { submit.disabled = false; }
     }));
   </script>
+<?= app_console_script() ?>
 </body>
 </html>

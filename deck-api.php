@@ -114,16 +114,35 @@ try {
     $status = deck_status($db, $deckId);
     $cards = load_deck_cards($db, $deckId);
     $db->commit();
+} catch (AppDatabaseException $error) {
+    // Panne de base déjà journalisée et traduite par app_database_exception().
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    deck_json(500, ['success' => false, 'message' => $error->getMessage()]);
 } catch (RuntimeException $error) {
     if ($db->inTransaction()) {
         $db->rollBack();
     }
+
+    // Refus métier (deck plein, carte non possédée...) : ce n'est pas une panne.
+    app_log('warning', 'Deck refusé (' . $action . ') : ' . $error->getMessage(), ['user_id' => $userId, 'deck_id' => $deckId]);
+
     deck_json(400, ['success' => false, 'message' => $error->getMessage()]);
-} catch (Throwable) {
+} catch (Throwable $error) {
     if ($db->inTransaction()) {
         $db->rollBack();
     }
-    deck_json(500, ['success' => false, 'message' => 'Impossible de mettre à jour le deck.']);
+
+    app_log_exception($error, 'Mise à jour du deck impossible (action ' . $action . ')');
+
+    deck_json(500, [
+        'success' => false,
+        'message' => $error instanceof PDOException
+            ? 'Impossible de mettre à jour le deck : ' . describe_database_error($error)
+            : 'Impossible de mettre à jour le deck : une erreur interne est survenue.',
+    ]);
 }
 
 deck_json(200, [
