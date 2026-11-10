@@ -6,9 +6,9 @@ require_once __DIR__ . '/config.php';
 
 session_start();
 
-function respond(bool $success, string $message, ?string $redirect = null): never
+function respond(bool $success, string $message, ?string $redirect = null, int $statusCode = 200): never
 {
-    http_response_code($success ? 200 : 400);
+    http_response_code($success ? $statusCode : ($statusCode === 200 ? 400 : $statusCode));
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([
       'success' => $success,
@@ -16,6 +16,26 @@ function respond(bool $success, string $message, ?string $redirect = null): neve
       'redirect' => $redirect,
     ], JSON_UNESCAPED_UNICODE);
     exit;
+}
+
+function ensureLoginAttemptsTable(PDO $db): void
+{
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS login_attempts (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            email VARCHAR(255) NOT NULL,
+            ip_address VARCHAR(45) NOT NULL,
+            attempted_at DATETIME NOT NULL,
+            PRIMARY KEY (id),
+            INDEX idx_login_attempts_email_time (email, attempted_at),
+            INDEX idx_login_attempts_ip_time (ip_address, attempted_at)
+        ) ENGINE=InnoDB'
+    );
+}
+
+function clientIpAddress(): string
+{
+    return substr((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 0, 45);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
@@ -108,14 +128,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'login') {
             $email = strtolower(trim((string) ($payload['email'] ?? '')));
             $password = (string) ($payload['password'] ?? '');
+            $ipAddress = clientIpAddress();
+            $maxLoginAttempts = 5;
+
+            ensureLoginAttemptsTable($db);
+            $attempts = $db->prepare(
+                'SELECT COUNT(*) FROM login_attempts
+                 WHERE attempted_at >= (NOW() - INTERVAL 15 MINUTE)
+                 AND (email = :email OR ip_address = :ip_address)'
+            );
+            $attempts->execute([
+                'email' => $email,
+                'ip_address' => $ipAddress,
+            ]);
+
+            if ((int) $attempts->fetchColumn() >= $maxLoginAttempts) {
+                respond(false, 'Trop de tentatives de connexion. Réessayez dans 15 minutes.', null, 429);
+            }
+
             $statement = $db->prepare('SELECT id, username, password_hash FROM users WHERE email = :email LIMIT 1');
             $statement->execute(['email' => $email]);
             $user = $statement->fetch();
 
             if (!$user || !password_verify($password, $user['password_hash'])) {
+                $failedAttempt = $db->prepare(
+                    'INSERT INTO login_attempts (email, ip_address, attempted_at)
+                     VALUES (:email, :ip_address, NOW())'
+                );
+                $failedAttempt->execute([
+                    'email' => $email,
+                    'ip_address' => $ipAddress,
+                ]);
                 respond(false, 'E-mail ou mot de passe incorrect.');
             }
 
+            $clearAttempts = $db->prepare(
+                'DELETE FROM login_attempts WHERE email = :email AND ip_address = :ip_address'
+            );
+            $clearAttempts->execute([
+                'email' => $email,
+                'ip_address' => $ipAddress,
+            ]);
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];

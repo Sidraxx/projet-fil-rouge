@@ -9,6 +9,7 @@ CREATE DATABASE IF NOT EXISTS cinema
 USE cinema;
 
 DROP TABLE IF EXISTS user_favorites;
+DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS movies;
 
@@ -51,6 +52,16 @@ CREATE TABLE users (
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_username (username),
     UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB;
+
+CREATE TABLE login_attempts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    email VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    attempted_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_login_attempts_email_time (email, attempted_at),
+    INDEX idx_login_attempts_ip_time (ip_address, attempted_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE user_favorites (
