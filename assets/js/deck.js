@@ -1,3 +1,4 @@
+const detailRoot = document.querySelector('#deck-detail');
 const searchInput = document.querySelector('#deck-search');
 const availableGrid = document.querySelector('#available-grid');
 const availableEmpty = document.querySelector('#available-empty');
@@ -5,11 +6,9 @@ const countEl = document.querySelector('#deck-count');
 const validityEl = document.querySelector('#deck-validity');
 const feedbackEl = document.querySelector('#deck-feedback');
 const deckList = document.querySelector('#deck-list');
-const deckSelect = document.querySelector('#deck-select');
 const deckTitle = document.querySelector('#deck-title');
-const deckActiveBadge = document.querySelector('#deck-active-badge');
 
-const deckNewButton = document.querySelector('#deck-new');
+const createButtons = document.querySelectorAll('[data-deck-create]');
 const deckRenameButton = document.querySelector('#deck-rename');
 const deckActivateButton = document.querySelector('#deck-activate');
 const deckDeleteButton = document.querySelector('#deck-delete');
@@ -28,30 +27,17 @@ const deckDeleteConfirm = document.querySelector('#deck-delete-confirm');
 
 const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-const rules = {
-  size: Number(countEl.dataset.size || 10),
-  copies: 2,
-};
+const currentDeckId = Number(detailRoot?.dataset.deckId || 0);
+const currentDeckName = deckTitle?.dataset.name || '';
+const deckCountTotal = Number(detailRoot?.dataset.deckCount || 0);
 
-const currentDeckId = Number(deckSelect.dataset.current);
-const currentDeckName = deckTitle.dataset.name || '';
+const rules = {
+  size: Number(countEl?.dataset.size || 10),
+};
 
 // État local : cartes possédées (movieId -> exemplaires) et composition du deck.
 const owned = new Map();
 const deck = new Map(); // movieId -> { title, poster, rarity, quantity }
-
-availableGrid.querySelectorAll('[data-available-card]').forEach((el) => {
-  owned.set(Number(el.dataset.movieId), Number(el.dataset.owned));
-});
-
-deckList.querySelectorAll('[data-deck-card]').forEach((el) => {
-  deck.set(Number(el.dataset.movieId), {
-    title: el.dataset.title,
-    poster: el.dataset.poster,
-    rarity: el.dataset.rarity,
-    quantity: Number(el.dataset.qty),
-  });
-});
 
 function normalize(value) {
   return value
@@ -104,7 +90,7 @@ function renderDeckList() {
 
   if (deck.size === 0) {
     const empty = document.createElement('li');
-    empty.className = 'rounded-xl border border-dashed border-white/10 px-3 py-6 text-center text-xs text-stone-500';
+    empty.className = 'w-full rounded-xl border border-dashed border-white/10 px-6 py-10 text-center text-sm text-stone-500';
     empty.textContent = deckList.dataset.emptyMessage;
     deckList.append(empty);
     return;
@@ -112,19 +98,28 @@ function renderDeckList() {
 
   deck.forEach((entry, movieId) => {
     const item = document.createElement('li');
-    item.className = 'flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2';
+    item.className = 'flex w-28 shrink-0 flex-col gap-2';
+
+    const card = document.createElement('div');
+    card.className = 'relative aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-stone-900';
 
     const poster = document.createElement('img');
     poster.src = entry.poster;
     poster.alt = '';
     poster.loading = 'lazy';
-    poster.className = 'h-12 w-9 shrink-0 rounded-md object-cover';
+    poster.className = 'h-full w-full object-cover';
+
+    const quantity = document.createElement('span');
+    quantity.className = 'absolute bottom-1.5 right-1.5 rounded-full border border-white/15 bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white';
+    quantity.textContent = `x${entry.quantity}`;
+
+    card.append(poster, quantity);
 
     const info = document.createElement('div');
-    info.className = 'min-w-0 flex-1';
+    info.className = 'min-w-0';
 
     const title = document.createElement('p');
-    title.className = 'truncate text-sm font-medium text-stone-100';
+    title.className = 'truncate text-xs font-semibold text-stone-100';
     title.title = entry.title;
     title.textContent = entry.title;
 
@@ -134,27 +129,15 @@ function renderDeckList() {
 
     info.append(title, rarity);
 
-    const quantity = document.createElement('span');
-    quantity.className = 'shrink-0 font-mono text-xs font-semibold text-stone-300';
-    quantity.textContent = `x${entry.quantity}`;
-
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
-    removeButton.className = 'shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300';
+    removeButton.className = 'w-full rounded-lg border border-white/10 px-2 py-1.5 text-xs font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300';
     removeButton.textContent = 'Retirer';
     removeButton.addEventListener('click', () => sendCardAction('remove', Number(movieId)));
 
-    item.append(poster, info, quantity, removeButton);
+    item.append(card, info, removeButton);
     deckList.append(item);
   });
-}
-
-function updateDeckCounts(count) {
-  // Met à jour l'entrée du deck courant dans le sélecteur (6/10 -> 7/10).
-  const option = deckSelect.querySelector(`option[value="${currentDeckId}"]`);
-  if (option) {
-    option.textContent = option.textContent.replace(/\(\d+\/\d+\)/, `(${count}/${rules.size})`);
-  }
 }
 
 function renderAvailable() {
@@ -209,6 +192,7 @@ async function postDeckApi(payload) {
 
 async function sendCardAction(action, movieId) {
   const result = await postDeckApi({ action, movieId, deckId: currentDeckId });
+  if (!result) return;
 
   deck.clear();
   (result.cards || []).forEach((card) => {
@@ -222,7 +206,6 @@ async function sendCardAction(action, movieId) {
 
   if (typeof result.size === 'number') rules.size = result.size;
 
-  updateDeckCounts(result.count);
   renderDeckList();
   renderAvailable();
   renderValidity();
@@ -237,50 +220,24 @@ function hideFeedback() {
   feedbackEl.classList.add('hidden');
 }
 
-// Gestion des decks : bascule, création, renommage et suppression.
-deckSelect.addEventListener('change', () => {
-  navigate(Number(deckSelect.value));
-});
-
-deckNewButton.addEventListener('click', () => {
-  deckNameTitle.textContent = 'Nouveau deck';
-  deckNameSubmit.textContent = 'Créer';
+function openNameDialog(action) {
+  const isCreate = action === 'create';
+  deckNameTitle.textContent = isCreate ? 'Nouveau deck' : 'Renommer le deck';
+  deckNameSubmit.textContent = isCreate ? 'Créer' : 'Renommer';
   deckNameError.classList.add('hidden');
-  deckNameForm.dataset.action = 'create';
-  deckNameInput.value = '';
+  deckNameForm.dataset.action = action;
+  deckNameInput.value = isCreate ? '' : currentDeckName;
   deckNameDialog.showModal();
-  deckNameInput.focus();
-});
-
-deckRenameButton.addEventListener('click', () => {
-  deckNameTitle.textContent = 'Renommer le deck';
-  deckNameSubmit.textContent = 'Renommer';
-  deckNameError.classList.add('hidden');
-  deckNameForm.dataset.action = 'rename';
-  deckNameInput.value = currentDeckName;
-  deckNameDialog.showModal();
-  deckNameInput.select();
-});
-
-deckActivateButton.addEventListener('click', async () => {
-  const result = await postDeckApi({ action: 'switch', deckId: currentDeckId });
-  if (result) navigate(currentDeckId);
-});
-
-deckDeleteButton.addEventListener('click', () => {
-  deckDeleteName.textContent = currentDeckName;
-  deckDeleteError.classList.add('hidden');
-  deckDeleteDialog.showModal();
-});
-
-deckDeleteConfirm.addEventListener('click', async () => {
-  if (deckSelect.options.length <= 1) {
-    deckDeleteError.textContent = 'Impossible de supprimer votre dernier deck.';
-    deckDeleteError.classList.remove('hidden');
-    return;
+  if (isCreate) {
+    deckNameInput.focus();
+  } else {
+    deckNameInput.select();
   }
-  const result = await postDeckApi({ action: 'delete', deckId: currentDeckId });
-  if (result) navigate(null);
+}
+
+// Création depuis la liste des decks (boutons "Nouveau").
+createButtons.forEach((button) => {
+  button.addEventListener('click', () => openNameDialog('create'));
 });
 
 deckNameForm.addEventListener('submit', async (event) => {
@@ -293,8 +250,9 @@ deckNameForm.addEventListener('submit', async (event) => {
   }
 
   deckNameSubmit.disabled = true;
+  const action = deckNameForm.dataset.action;
   const result = await postDeckApi({
-    action: deckNameForm.dataset.action,
+    action,
     deckId: currentDeckId,
     name,
   });
@@ -302,7 +260,7 @@ deckNameForm.addEventListener('submit', async (event) => {
 
   if (result) {
     deckNameDialog.close();
-    navigate(deckNameForm.dataset.action === 'create' ? result.deckId : currentDeckId);
+    navigate(action === 'create' ? result.deckId : currentDeckId);
   }
 });
 
@@ -318,15 +276,53 @@ deckNameForm.addEventListener('submit', async (event) => {
   });
 });
 
-searchInput.addEventListener('input', renderAvailable);
-
-availableGrid.querySelectorAll('[data-add-deck]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const host = button.closest('[data-available-card]');
-    sendCardAction('add', Number(host.dataset.movieId));
+if (detailRoot) {
+  deckList.querySelectorAll('[data-deck-card]').forEach((el) => {
+    deck.set(Number(el.dataset.movieId), {
+      title: el.dataset.title,
+      poster: el.dataset.poster,
+      rarity: el.dataset.rarity,
+      quantity: Number(el.dataset.qty),
+    });
   });
-});
 
-renderDeckList();
-renderAvailable();
-renderValidity();
+  availableGrid.querySelectorAll('[data-available-card]').forEach((el) => {
+    owned.set(Number(el.dataset.movieId), Number(el.dataset.owned));
+  });
+
+  deckRenameButton.addEventListener('click', () => openNameDialog('rename'));
+
+  deckActivateButton.addEventListener('click', async () => {
+    const result = await postDeckApi({ action: 'switch', deckId: currentDeckId });
+    if (result) navigate(currentDeckId);
+  });
+
+  deckDeleteButton.addEventListener('click', () => {
+    deckDeleteName.textContent = currentDeckName;
+    deckDeleteError.classList.add('hidden');
+    deckDeleteDialog.showModal();
+  });
+
+  deckDeleteConfirm.addEventListener('click', async () => {
+    if (deckCountTotal <= 1) {
+      deckDeleteError.textContent = 'Impossible de supprimer votre dernier deck.';
+      deckDeleteError.classList.remove('hidden');
+      return;
+    }
+    const result = await postDeckApi({ action: 'delete', deckId: currentDeckId });
+    if (result) navigate(null);
+  });
+
+  searchInput.addEventListener('input', renderAvailable);
+
+  availableGrid.querySelectorAll('[data-add-deck]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const host = button.closest('[data-available-card]');
+      sendCardAction('add', Number(host.dataset.movieId));
+    });
+  });
+
+  renderDeckList();
+  renderAvailable();
+  renderValidity();
+}

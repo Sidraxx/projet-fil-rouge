@@ -10,95 +10,148 @@ require_login('../');
 $db = database();
 $userId = (int) $_SESSION['user_id'];
 
-// Deck affiché : celui demandé (?deck=N) s'il appartient au joueur, sinon l'actif.
-$requestedDeckId = (int) ($_GET['deck'] ?? 0);
-$deckId = $requestedDeckId > 0 && deck_belongs_to_user($db, $userId, $requestedDeckId)
-    ? $requestedDeckId
-    : get_or_create_deck($db, $userId);
-
+get_or_create_deck($db, $userId);
 $decks = load_user_decks($db, $userId);
-$deck = $decks[0] ?? null;
+
+// Vue détail : uniquement si ?deck=N désigne un deck du joueur, sinon la liste des decks.
+$requestedDeckId = (int) ($_GET['deck'] ?? 0);
+$deck = null;
 foreach ($decks as $deckRow) {
-    if ($deckRow['id'] === $deckId) {
+    if ($deckRow['id'] === $requestedDeckId) {
         $deck = $deckRow;
         break;
     }
 }
-$status = deck_status($db, $deckId);
-$available = load_deck_available_cards($db, $userId, $deckId);
-$deckCards = load_deck_cards($db, $deckId);
 
 $rarityStyles = [
-    'Commune' => ['badge' => 'border-stone-500/40 bg-stone-500/15 text-stone-200', 'frame' => 'border-stone-500/30', 'label' => 'text-stone-400'],
-    'Peu commune' => ['badge' => 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300', 'frame' => 'border-emerald-500/30', 'label' => 'text-emerald-300'],
-    'Rare' => ['badge' => 'border-sky-500/40 bg-sky-500/15 text-sky-300', 'frame' => 'border-sky-500/30', 'label' => 'text-sky-300'],
-    'Épique' => ['badge' => 'border-violet-500/40 bg-violet-500/15 text-violet-300', 'frame' => 'border-violet-500/30', 'label' => 'text-violet-300'],
-    'Légendaire' => ['badge' => 'border-amber-400/40 bg-amber-400/15 text-amber-300', 'frame' => 'border-amber-400/40', 'label' => 'text-amber-300'],
+    'Commune' => ['badge' => 'border-stone-500/40 bg-stone-500/15 text-stone-200', 'frame' => 'border-stone-500/30'],
+    'Peu commune' => ['badge' => 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300', 'frame' => 'border-emerald-500/30'],
+    'Rare' => ['badge' => 'border-sky-500/40 bg-sky-500/15 text-sky-300', 'frame' => 'border-sky-500/30'],
+    'Épique' => ['badge' => 'border-violet-500/40 bg-violet-500/15 text-violet-300', 'frame' => 'border-violet-500/30'],
+    'Légendaire' => ['badge' => 'border-amber-400/40 bg-amber-400/15 text-amber-300', 'frame' => 'border-amber-400/40'],
 ];
+
+if ($deck !== null) {
+    $deckId = (int) $deck['id'];
+    $status = deck_status($db, $deckId);
+    $available = load_deck_available_cards($db, $userId, $deckId);
+    $deckCards = load_deck_cards($db, $deckId);
+}
 
 render_start('Deck', 'deck', '../');
 ?>
   <main class="flex flex-1 flex-col px-4 pb-16 pt-4 sm:px-8">
     <div class="mx-auto w-full max-w-[1600px]">
+<?php if ($deck === null): ?>
       <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Constructeur</p>
-          <h1 class="mt-2 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            <span id="deck-title" data-name="<?= e((string) $deck['name']) ?>"><?= e((string) $deck['name']) ?></span>
-            <?php if ($deck['is_active']): ?>
-              <span class="rounded-full border border-mint/50 bg-mint/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-mint" id="deck-active-badge" data-active="true">Actif</span>
-            <?php else: ?>
-              <span class="hidden rounded-full border border-mint/50 bg-mint/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-mint" id="deck-active-badge" data-active="false">Actif</span>
-            <?php endif; ?>
-          </h1>
+          <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Mes decks</h1>
           <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-500">
-            <span>Choisissez les cartes de votre collection qui composeront votre deck.</span>
+            <span>Cliquez sur un deck pour composer ses cartes. Le deck actif est celui utilisé au combat.</span>
             <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Deck max : <?= DECK_MAX_SIZE ?></span>
             <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Doublons max : <?= DECK_MAX_COPIES ?></span>
-            <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Decks max : <?= DECK_MAX_COUNT ?></span>
+            <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Decks : <?= count($decks) ?>/<?= DECK_MAX_COUNT ?></span>
           </p>
         </div>
-        <div class="flex flex-col items-stretch gap-2 sm:items-end">
-          <div class="flex items-center gap-2">
-            <select id="deck-select" data-current="<?= $deckId ?>" aria-label="Choisir le deck à éditer" class="rounded-xl border border-mint/40 bg-[#171918] px-3 py-2.5 text-sm font-semibold text-stone-200 outline-none transition hover:border-mint/60 focus:border-mint focus:ring-2 focus:ring-mint/15">
-              <?php foreach ($decks as $deckRow): ?>
-                <option class="bg-[#0c0d0d]" value="<?= $deckRow['id'] ?>" <?= $deckRow['id'] === $deckId ? 'selected' : '' ?>>
-                  <?= e((string) $deckRow['name']) ?> (<?= $deckRow['cards'] ?>/<?= DECK_MAX_SIZE ?>)<?= $deckRow['is_active'] ? ' · Actif' : '' ?>
-                </option>
-              <?php endforeach; ?>
-            </select>
-            <button id="deck-new" type="button" class="rounded-xl border border-mint/40 bg-mint/10 px-3 py-2.5 text-sm font-semibold text-mint transition hover:border-mint hover:bg-mint/20">Nouveau</button>
+        <?php if (count($decks) < DECK_MAX_COUNT): ?>
+          <button type="button" data-deck-create class="self-start rounded-xl border border-mint/40 bg-mint/10 px-4 py-2.5 text-sm font-semibold text-mint transition hover:border-mint hover:bg-mint/20 lg:self-auto">Nouveau deck</button>
+        <?php endif; ?>
+      </header>
+
+      <p id="deck-feedback" class="mt-4 hidden text-sm text-amber-300" role="status" aria-live="assertive"></p>
+
+      <div id="deck-tiles" class="mt-8 flex gap-4 overflow-x-auto pb-4" aria-label="Liste des decks">
+        <?php foreach ($decks as $deckRow): ?>
+          <?php $initial = mb_strtoupper(mb_substr((string) $deckRow['name'], 0, 1, 'UTF-8'), 'UTF-8'); ?>
+          <a href="deck.php?deck=<?= $deckRow['id'] ?>" class="group relative aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-2xl border bg-[#111312] transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl <?= $deckRow['is_active'] ? 'border-mint/60' : 'border-white/10' ?>">
+            <?php if ($deckRow['cover'] !== ''): ?>
+              <img src="<?= e($deckRow['cover']) ?>" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-[1.03] group-hover:opacity-100">
+            <?php else: ?>
+              <span class="absolute inset-0 flex items-center justify-center text-6xl font-semibold text-white/10"><?= e($initial) ?></span>
+            <?php endif; ?>
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+            <?php if ($deckRow['is_active']): ?>
+              <span class="absolute left-2 top-2 rounded-full border border-mint/50 bg-mint/15 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-mint backdrop-blur">Actif</span>
+            <?php endif; ?>
+            <div class="absolute inset-x-0 bottom-0 p-3">
+              <p class="truncate text-sm font-semibold text-white"><?= e((string) $deckRow['name']) ?></p>
+              <p class="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-stone-400"><?= $deckRow['cards'] ?>/<?= DECK_MAX_SIZE ?> cartes</p>
+            </div>
+          </a>
+        <?php endforeach; ?>
+
+        <?php if (count($decks) < DECK_MAX_COUNT): ?>
+          <button type="button" data-deck-create class="flex aspect-[2/3] w-40 shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-mint/40 bg-mint/5 text-mint transition hover:border-mint hover:bg-mint/10">
+            <span class="text-4xl leading-none">+</span>
+            <span class="text-sm font-semibold">Nouveau deck</span>
+          </button>
+        <?php endif; ?>
+      </div>
+<?php else: ?>
+      <div id="deck-detail" data-deck-id="<?= $deckId ?>" data-deck-count="<?= count($decks) ?>">
+        <a href="deck.php" class="inline-flex items-center gap-2 text-xs font-medium text-stone-400 transition hover:text-mint">&larr; Tous mes decks</a>
+
+        <header class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Deck</p>
+            <h1 class="mt-2 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <span id="deck-title" data-name="<?= e((string) $deck['name']) ?>"><?= e((string) $deck['name']) ?></span>
+              <?php if ($deck['is_active']): ?>
+                <span class="rounded-full border border-mint/50 bg-mint/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-mint">Actif</span>
+              <?php endif; ?>
+            </h1>
+            <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-stone-500">
+              <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Deck max : <?= DECK_MAX_SIZE ?></span>
+              <span class="rounded-full border border-white/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-stone-500">Doublons max : <?= DECK_MAX_COPIES ?></span>
+            </p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <button id="deck-rename" type="button" class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-stone-300 transition hover:border-white/20 hover:bg-white/10">Renommer</button>
             <button id="deck-activate" type="button" <?= $deck['is_active'] ? 'disabled' : '' ?> class="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-stone-300 transition hover:border-mint/50 hover:text-mint disabled:cursor-default disabled:opacity-40"><?= $deck['is_active'] ? 'Deck actif' : 'Utiliser au combat' ?></button>
             <button id="deck-delete" type="button" class="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-300 transition hover:border-red-500/50 hover:bg-red-500/20">Supprimer</button>
           </div>
-          <p class="text-xs text-stone-500">Le deck actif est celui utilisé au combat.</p>
-        </div>
-        <div class="rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-4">
-          <p class="text-center text-lg font-semibold text-mint"><span id="deck-count" data-size="<?= $status['size'] ?>"><?= $status['count'] ?></span> / <?= $status['size'] ?></p>
-          <p class="mt-0.5 text-center text-xs text-stone-500">cartes dans le deck</p>
-        </div>
-      </header>
+        </header>
 
-      <section class="mt-6" aria-label="État du deck">
-        <p id="deck-validity" role="status" aria-live="polite" data-valid="<?= $status['valid'] ? 'true' : 'false' ?>"
-           class="inline-flex rounded-full border px-4 py-2 text-sm font-medium data-[valid=false]:border-amber-400/40 data-[valid=false]:bg-amber-400/10 data-[valid=false]:text-amber-300 data-[valid=true]:border-mint/50 data-[valid=true]:bg-mint/10 data-[valid=true]:text-mint"></p>
-        <p id="deck-feedback" class="mt-2 hidden text-sm text-amber-300" role="status" aria-live="assertive"></p>
-      </section>
-
-      <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section aria-label="Cartes disponibles">
+        <section class="mt-8 rounded-2xl border border-white/10 bg-[#101211] p-5" aria-label="Composition du deck">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2 class="text-lg font-semibold">Cartes disponibles</h2>
+            <div class="flex items-baseline gap-3">
+              <h2 class="text-lg font-semibold">Composition</h2>
+              <p class="font-mono text-sm font-semibold text-mint"><span id="deck-count" data-size="<?= $status['size'] ?>"><?= $status['count'] ?></span> / <?= $status['size'] ?></p>
+            </div>
+            <p id="deck-validity" role="status" aria-live="polite" data-valid="<?= $status['valid'] ? 'true' : 'false' ?>"
+               class="inline-flex w-fit rounded-full border px-4 py-1.5 text-sm font-medium data-[valid=false]:border-amber-400/40 data-[valid=false]:bg-amber-400/10 data-[valid=false]:text-amber-300 data-[valid=true]:border-mint/50 data-[valid=true]:bg-mint/10 data-[valid=true]:text-mint"></p>
+          </div>
+          <p id="deck-feedback" class="mt-3 hidden text-sm text-amber-300" role="status" aria-live="assertive"></p>
+
+          <ul id="deck-list" data-empty-message="Le deck est vide. Ajoutez des cartes depuis votre collection." class="mt-4 flex gap-4 overflow-x-auto pb-2">
+            <?php foreach ($deckCards as $card): ?>
+              <li data-deck-card data-movie-id="<?= $card['id'] ?>" data-qty="<?= $card['quantity'] ?>" data-title="<?= e((string) $card['title']) ?>" data-poster="<?= e((string) $card['poster']) ?>" data-rarity="<?= e((string) $card['rarity']) ?>"
+                  class="flex w-28 shrink-0 flex-col gap-2">
+                <div class="relative aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-stone-900">
+                  <img src="<?= e((string) $card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover">
+                  <span class="absolute bottom-1.5 right-1.5 rounded-full border border-white/15 bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white">x<?= $card['quantity'] ?></span>
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-xs font-semibold text-stone-100" title="<?= e((string) $card['title']) ?>"><?= e((string) $card['title']) ?></p>
+                  <p class="text-[11px] font-semibold text-stone-400"><?= e((string) $card['rarity']) ?></p>
+                </div>
+                <button type="button" data-remove-deck class="w-full rounded-lg border border-white/10 px-2 py-1.5 text-xs font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300">Retirer</button>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+
+        <section class="mt-8" aria-label="Cartes disponibles">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 class="text-lg font-semibold">Ma collection</h2>
             <label>
               <span class="sr-only">Rechercher une carte</span>
               <input id="deck-search" type="search" placeholder="Rechercher par titre ou genre..." class="w-full rounded-xl border border-white/10 bg-[#171918] px-4 py-2.5 text-sm text-stone-100 outline-none transition placeholder:text-stone-600 focus:border-mint/60 focus:ring-2 focus:ring-mint/10 sm:w-80">
             </label>
           </div>
 
-          <div id="available-grid" class="mt-4 grid grid-cols-3 gap-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+          <div id="available-grid" class="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
             <?php foreach ($available as $card): ?>
               <?php $style = $rarityStyles[$card['rarity']] ?? $rarityStyles['Commune']; $title = (string) $card['title']; ?>
               <article
@@ -135,30 +188,8 @@ render_start('Deck', 'deck', '../');
             <p class="text-sm text-stone-500">Aucune carte disponible. Ouvrez des paquets pour enrichir votre collection.</p>
           </section>
         </section>
-
-        <aside class="lg:sticky lg:top-4 lg:self-start">
-          <div class="rounded-2xl border border-white/10 bg-[#101211] p-4">
-            <div class="flex items-center justify-between">
-              <h2 class="text-lg font-semibold">Composition</h2>
-            </div>
-
-            <ul id="deck-list" data-empty-message="Le deck est vide. Ajoutez des cartes depuis votre collection." class="mt-3 space-y-2">
-              <?php foreach ($deckCards as $card): ?>
-                <li data-deck-card data-movie-id="<?= $card['id'] ?>" data-qty="<?= $card['quantity'] ?>" data-title="<?= e((string) $card['title']) ?>" data-poster="<?= e((string) $card['poster']) ?>" data-rarity="<?= e((string) $card['rarity']) ?>"
-                    class="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2">
-                  <img src="<?= e((string) $card['poster']) ?>" alt="" loading="lazy" class="h-12 w-9 shrink-0 rounded-md object-cover">
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-stone-100" title="<?= e((string) $card['title']) ?>"><?= e((string) $card['title']) ?></p>
-                    <p class="text-[11px] font-semibold <?= $rarityStyles[$card['rarity']]['label'] ?? 'text-stone-500' ?>"><?= e((string) $card['rarity']) ?></p>
-                  </div>
-                  <span class="shrink-0 font-mono text-xs font-semibold text-stone-300">x<?= $card['quantity'] ?></span>
-                  <button type="button" data-remove-deck class="shrink-0 rounded-full border border-white/10 px-2.5 py-1 text-[11px] font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300">Retirer</button>
-                </li>
-              <?php endforeach; ?>
-            </ul>
-          </div>
-        </aside>
       </div>
+<?php endif; ?>
     </div>
   </main>
 
