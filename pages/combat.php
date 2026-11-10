@@ -105,6 +105,14 @@ render_start('Combat', 'battle', '../');
           <button id="combat-rules-button" type="button" class="combat-rules-button" aria-haspopup="dialog">?</button>
         </div>
         <div id="combat-message" class="mt-4 min-h-6 text-sm text-stone-400" role="status"></div>
+        <div class="combat-help-bar" role="note">
+          <span class="combat-help-bar__step">1</span>
+          <span>Cliquez sur une carte pour choisir une cible.</span>
+          <span class="combat-help-bar__arrow">→</span>
+          <span class="combat-help-bar__step">2</span>
+          <span>Utilisez une attaque visible sous la carte de votre choix.</span>
+          <span id="combat-target-summary" class="combat-target-summary">Cible adverse : sélectionnez une carte</span>
+        </div>
         <div class="combat-field mt-6 rounded-3xl border border-white/10 p-3 sm:p-5">
           <section class="combat-side combat-side--enemy" aria-labelledby="enemy-team-title">
             <div class="combat-side__header">
@@ -134,10 +142,14 @@ render_start('Combat', 'battle', '../');
             <ol id="combat-log" class="mt-4 max-h-72 space-y-2 overflow-y-auto text-xs leading-5 text-stone-400"></ol>
           </section>
         </div>
-        <div id="combat-result" class="mt-6 hidden rounded-2xl border border-mint/30 bg-mint/10 p-6 text-center">
-          <h2 id="combat-result-title" class="text-2xl font-semibold text-mint"></h2>
-          <p id="combat-result-text" class="mt-2 text-sm text-stone-400"></p>
-          <button id="new-combat" type="button" class="mt-5 rounded-full bg-mint px-5 py-3 text-sm font-semibold text-black transition hover:bg-emerald-300">Préparer un nouveau combat</button>
+        <div id="combat-result" class="combat-result hidden" role="dialog" aria-modal="true" aria-labelledby="combat-result-title">
+          <div class="combat-result__box">
+            <span id="combat-result-icon" class="combat-result__icon" aria-hidden="true">★</span>
+            <p id="combat-result-label" class="combat-result__label">Résultat du duel</p>
+            <h2 id="combat-result-title" class="combat-result__title"></h2>
+            <p id="combat-result-text" class="combat-result__text"></p>
+            <button id="new-combat" type="button" class="combat-result__button">Rejouer</button>
+          </div>
         </div>
       </section>
     </div>

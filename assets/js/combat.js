@@ -113,6 +113,7 @@ function renderAttackButtons(card, cardIndex) {
         class="action-button"
         data-attack-index="${attackIndex}"
         data-attacker-index="${cardIndex}"
+        aria-label="${escapeHtml(attack.name)} : ${damage}, coûte ${attack.cost} énergie"
         ${disabled}
       >
         <span>${escapeHtml(attack.name)}</span>
@@ -130,6 +131,7 @@ function renderEffectButton(card, cardIndex) {
       type="button"
       class="action-button action-button--effect"
       data-effect-index="${cardIndex}"
+      aria-label="${escapeHtml(card.effect.name)} : ${escapeHtml(card.effect.description)}, coûte ${card.effect.cost} énergie"
       ${disabled}
     >
       <span>${escapeHtml(card.effect.name)}</span>
@@ -155,6 +157,106 @@ function renderCombatLog() {
   log.innerHTML = combatState.log.slice().reverse().map((entry) => `
     <li class="border-b border-white/5 pb-2">${escapeHtml(entry)}</li>
   `).join('');
+}
+
+function findCombatCard(side, index) {
+  return document.querySelector(
+    `[data-target-side="${side}"][data-target-index="${index}"]`,
+  );
+}
+
+function addAnimationClass(element, className) {
+  if (!element) {
+    return;
+  }
+
+  element.classList.remove(className);
+  void element.offsetWidth;
+  element.classList.add(className);
+}
+
+function showFloatingValue(side, index, value, type) {
+  const card = findCombatCard(side, index);
+  if (!card || value === 0) {
+    return;
+  }
+
+  const valueElement = document.createElement('span');
+  valueElement.className = `combat-floating-value combat-floating-value--${type}`;
+  valueElement.textContent = `${value > 0 ? '+' : ''}${value}`;
+  card.appendChild(valueElement);
+  valueElement.addEventListener('animationend', () => valueElement.remove(), { once: true });
+}
+
+function animateStateChanges(previousState, nextState, action, data) {
+  if (!previousState) {
+    return;
+  }
+
+  ['player', 'enemy'].forEach((side) => {
+    nextState[side].team.forEach((card, index) => {
+      const previousCard = previousState[side].team[index];
+      const cardElement = findCombatCard(side, index);
+
+      if (!previousCard || !cardElement) {
+        return;
+      }
+
+      const healthChange = card.hp - previousCard.hp;
+      const shieldChange = card.shield - previousCard.shield;
+
+      if (healthChange < 0) {
+        addAnimationClass(cardElement, 'is-damaged');
+        showFloatingValue(side, index, healthChange, 'damage');
+      } else if (healthChange > 0) {
+        addAnimationClass(cardElement, 'is-healed');
+        showFloatingValue(side, index, healthChange, 'heal');
+      }
+
+      if (shieldChange > 0) {
+        addAnimationClass(cardElement, 'is-shielded');
+        showFloatingValue(side, index, shieldChange, 'shield');
+      }
+
+      if (!previousCard.defeated && card.defeated) {
+        addAnimationClass(cardElement, 'is-defeated-now');
+      }
+    });
+  });
+
+  if (action === 'attack') {
+    addAnimationClass(
+      findCombatCard('player', Number(data.attacker_index)),
+      'is-attacking',
+    );
+  }
+
+  if (action === 'effect') {
+    addAnimationClass(
+      findCombatCard('player', Number(data.source_index)),
+      'is-casting',
+    );
+  }
+
+  if (action === 'focus') {
+    addAnimationClass(document.querySelector('.combat-resource--energy'), 'is-gaining');
+  }
+
+  if (previousState.turn !== nextState.turn) {
+    addAnimationClass(document.querySelector('.combat-turn'), 'turn-changed');
+  }
+}
+
+function updateTargetSummary() {
+  const summary = document.querySelector('#combat-target-summary');
+  const enemy = combatState.enemy.team[selectedEnemyIndex];
+  const player = combatState.player.team[selectedPlayerIndex];
+
+  if (!summary || !enemy || !player) {
+    return;
+  }
+
+  summary.textContent = `Cible adverse : ${enemy.title} · Cible alliée : ${player.title}`;
 }
 
 function selectTarget(cardElement) {
@@ -222,10 +324,16 @@ function showCombatResult(status) {
   }
 
   const result = document.querySelector('#combat-result');
+  const icon = document.querySelector('#combat-result-icon');
+  const label = document.querySelector('#combat-result-label');
   const title = document.querySelector('#combat-result-title');
   const text = document.querySelector('#combat-result-text');
 
+  result.classList.remove('combat-result--victory', 'combat-result--defeat');
+  result.classList.add(`combat-result--${status}`);
   result.classList.remove('hidden');
+  icon.textContent = status === 'victory' ? '★' : '✕';
+  label.textContent = status === 'victory' ? 'Duel remporté' : 'Fin du duel';
   title.textContent = status === 'victory' ? 'Victoire !' : 'Défaite';
   text.textContent = status === 'victory'
     ? 'Les quatre cartes adverses sont vaincues.'
@@ -258,6 +366,7 @@ function renderCombatState() {
   );
 
   renderCombatLog();
+  updateTargetSummary();
   addTargetListeners();
   addActionListeners();
 
@@ -275,6 +384,7 @@ function disableCombatButtons() {
 
 async function sendCombatAction(action, data = {}) {
   disableCombatButtons();
+  const previousState = combatState;
 
   try {
     const response = await fetch('../combat.php', {
@@ -296,6 +406,7 @@ async function sendCombatAction(action, data = {}) {
     if (result.state) {
       combatState = result.state;
       renderCombatState();
+      animateStateChanges(previousState, combatState, action, data);
       updateMessage(
         result.result?.message
           || (combatState.turn === 'player' ? 'À vous de jouer.' : 'Le système joue...'),
