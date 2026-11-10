@@ -65,6 +65,27 @@ Ouvrir ensuite `http://localhost:8000/auth.php`.
 
 Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP. Pour repartir de zéro, supprimer la base (`mysql -u root -e "DROP DATABASE cinema"`) puis réexécuter ces commandes.
 
+## Erreurs et diagnostics
+
+L'application n'affiche jamais de trace brute : une erreur de base est traduite en
+message lisible (bandeau dans la page) et détaillée à deux endroits :
+
+- la **console du navigateur** (F12 → Console), sous la forme
+  `Absolute Cinema — N message(s) applicatif(s)` : code MySQL (SQLSTATE), fichier
+  et ligne concernés ;
+- les **logs PHP** (`error_log`) : les mêmes informations côté serveur.
+
+La traduction des erreurs est centralisée dans `includes/errors.php`
+(`describe_database_error()`), utilisée par `config.php`, les pages et les API.
+
+Points de vigilance après un partage de base :
+
+- importer le dump **puis** rejouer les scripts de `database/` dans l'ordre du
+  README : un dump ancien ne contient pas les tables `user_decks` / `deck_cards` ;
+- se **déconnecter puis se reconnecter** après avoir importé la base d'un autre
+  joueur : la session contient encore un `user_id` qui n'existe plus (l'appli
+  redirige désormais vers la page de connexion au lieu de planter).
+
 ## Lancer les tests
 
 Les tests utilisent PHPUnit et une base dédiée `cinema_test`, reconstruite automatiquement à chaque exécution : la base `cinema` de l'application n'est jamais touchée.

@@ -31,12 +31,8 @@ function deck_rules(): array
     ];
 }
 
-/**
- * Charge le deck actif du joueur, en le créant s'il manque.
- * Un joueur peut posséder plusieurs decks : un seul est actif, et la
- * fonction garantit qu'il en existe toujours un à l'identifiant retourné.
- */
-function get_or_create_deck(PDO $db, int $userId): int
+/** Identifiant du deck actif du joueur, ou null s'il n'en a aucun. */
+function active_deck_id(PDO $db, int $userId): ?int
 {
     $statement = $db->prepare(
         'SELECT id FROM user_decks
@@ -46,11 +42,12 @@ function get_or_create_deck(PDO $db, int $userId): int
     $statement->execute(['user_id' => $userId]);
     $deckId = $statement->fetchColumn();
 
-    if ($deckId !== false) {
-        return (int) $deckId;
-    }
+    return $deckId === false ? null : (int) $deckId;
+}
 
-    // Aucun actif : bascule le plus ancien deck existant, sinon crée le premier.
+/** Identifiant du plus ancien deck du joueur, ou null s'il n'en a aucun. */
+function oldest_deck_id(PDO $db, int $userId): ?int
+{
     $statement = $db->prepare(
         'SELECT id FROM user_decks
          WHERE user_id = :user_id
@@ -58,20 +55,82 @@ function get_or_create_deck(PDO $db, int $userId): int
          LIMIT 1'
     );
     $statement->execute(['user_id' => $userId]);
-    $fallback = $statement->fetchColumn();
+    $deckId = $statement->fetchColumn();
 
-    if ($fallback !== false) {
-        switch_active_deck($db, $userId, (int) $fallback);
+    return $deckId === false ? null : (int) $deckId;
+}
 
-        return (int) $fallback;
+/**
+ * Dernier recours quand la création d'un deck échoue : si la base a encore
+ * l'ancien index UNIQUE (un seul deck par joueur), le deck existant est
+ * réutilisé et activé, avec un avertissement expliquant comment migrer.
+ */
+function recover_existing_deck(PDO $db, int $userId, PDOException $exception): ?int
+{
+    if ((int) ($exception->errorInfo[1] ?? 0) !== 1062) {
+        return null;
     }
 
-    $db->prepare(
-        'INSERT INTO user_decks (user_id, name, is_active)
-         VALUES (:user_id, :name, 1)'
-    )->execute(['user_id' => $userId, 'name' => DECK_DEFAULT_NAME]);
+    try {
+        $deckId = oldest_deck_id($db, $userId);
+        if ($deckId === null) {
+            return null;
+        }
 
-    return (int) $db->lastInsertId();
+        app_log(
+            'warning',
+            'user_decks a refusé un deck supplémentaire (index UNIQUE hérité) : réutilisation du deck existant. Exécutez database/user_decks.sql pour migrer la base.',
+            ['user_id' => $userId]
+        );
+
+        switch_active_deck($db, $userId, $deckId);
+
+        return $deckId;
+    } catch (PDOException $recoveryFailure) {
+        app_log_exception($recoveryFailure, 'Récupération du deck existant impossible');
+
+        return null;
+    }
+}
+
+/**
+ * Charge le deck actif du joueur, en le créant s'il manque.
+ * Un joueur peut posséder plusieurs decks : un seul est actif, et la
+ * fonction garantit qu'il en existe toujours un à l'identifiant retourné.
+ *
+ * Aucune PDOException ne remonte : l'erreur est journalisée puis convertie
+ * en AppDatabaseException avec un message lisible (affiché en bandeau).
+ */
+function get_or_create_deck(PDO $db, int $userId): int
+{
+    try {
+        $active = active_deck_id($db, $userId);
+        if ($active !== null) {
+            return $active;
+        }
+
+        // Aucun actif : bascule le plus ancien deck existant, sinon crée le premier.
+        $fallback = oldest_deck_id($db, $userId);
+        if ($fallback !== null) {
+            switch_active_deck($db, $userId, $fallback);
+
+            return $fallback;
+        }
+
+        $db->prepare(
+            'INSERT INTO user_decks (user_id, name, is_active)
+             VALUES (:user_id, :name, 1)'
+        )->execute(['user_id' => $userId, 'name' => DECK_DEFAULT_NAME]);
+
+        return (int) $db->lastInsertId();
+    } catch (PDOException $exception) {
+        $deckId = recover_existing_deck($db, $userId, $exception);
+        if ($deckId !== null) {
+            return $deckId;
+        }
+
+        throw app_database_exception($exception, 'Création du deck du joueur ' . $userId . ' impossible');
+    }
 }
 
 /**

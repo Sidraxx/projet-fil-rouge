@@ -237,12 +237,14 @@ async function playOpen() {
       setPackState(result.packsAvailable, result.nextIn ?? null);
     }
     if (!response.ok || !result.success || !Array.isArray(result.cards)) {
+      console.error('[home] tirage refusé :', { status: response.status, message: result.message, result });
       status.textContent = result.message || 'Le tirage a échoué.';
       return;
     }
     status.textContent = '';
     showCards(result.cards);
-  } catch {
+  } catch (error) {
+    console.error('[home] serveur injoignable ou réponse illisible :', error);
     status.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.';
   } finally {
     opening = false;

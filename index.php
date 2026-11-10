@@ -7,9 +7,23 @@ require_once __DIR__ . '/includes/layout.php';
 require_login();
 require_once __DIR__ . '/includes/packs.php';
 
-$packState = refresh_pack_state(database(), (int) $_SESSION['user_id']);
-$packsAvailable = $packState['available'];
 $packsLimit = PACK_LIMIT;
+$packError = null;
+$packState = ['available' => 0, 'next_in' => null];
+
+// Ouvrir l'accueil ne doit jamais planter : si la base est incomplète, un
+// bandeau l'explique et le détail technique reste dans les logs et la console.
+try {
+    // Session obsolète (base réimportée, joueur supprimé) : retour à la connexion.
+    current_user();
+
+    $packState = refresh_pack_state(database(), (int) $_SESSION['user_id']);
+} catch (Throwable $error) {
+    app_log_exception($error, 'État des paquets indisponible (joueur ' . (int) $_SESSION['user_id'] . ')');
+    $packError = app_error_message($error);
+}
+
+$packsAvailable = $packState['available'];
 $nextIn = $packState['next_in'];
 
 render_start('Ouvrir un paquet', 'packs');
@@ -31,8 +45,15 @@ render_start('Ouvrir un paquet', 'packs');
     <p class="mt-3 text-center text-sm text-stone-400">Découvrez 5 nouvelles cartes de cinéma</p>
     <button id="how-link" class="mt-3 text-sm font-medium text-mint hover:text-emerald-300" type="button">Comment ça marche ?</button>
 
+<?php if ($packError !== null): ?>
+    <p class="mt-6 w-full max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-200" role="alert">
+      Les paquets sont momentanément indisponibles : <?= e($packError) ?><br>
+      <span class="font-mono text-[11px] uppercase tracking-wider text-amber-200/50">Détails techniques : console du navigateur (F12) et logs PHP</span>
+    </p>
+<?php endif; ?>
+
     <div id="pack-stage" class="flex w-full flex-col items-center">
-    <button id="open-pack" class="group relative mt-12 border-0 bg-transparent p-0 disabled:cursor-wait" type="button" aria-label="Ouvrir le paquet">
+    <button id="open-pack" class="group relative mt-12 border-0 bg-transparent p-0 disabled:cursor-wait" type="button" aria-label="Ouvrir le paquet" <?= $packError !== null ? 'disabled' : '' ?>>
       <span class="pointer-events-none absolute left-1/2 top-1/2 h-56 w-44 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-200/25 blur-3xl transition group-hover:bg-amber-100/40"></span>
       <span id="pack" class="relative block transition duration-300 group-hover:-translate-y-1">
         <svg class="h-auto w-52 drop-shadow-[0_18px_40px_rgba(0,0,0,.55)] sm:w-60" viewBox="0 0 220 300" role="img" aria-hidden="true">

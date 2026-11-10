@@ -16,6 +16,7 @@
     </testsuite>
   </testsuites>
   <php>
+    <env name="APP_LOG_SILENT" value="1"/>
     <env name="TEST_DB_HOST" value="localhost"/>
     <env name="TEST_DB_PORT" value="3306"/>
     <env name="TEST_DB_USER" value="root"/>

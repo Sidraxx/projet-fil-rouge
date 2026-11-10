@@ -29,6 +29,14 @@ function refresh_pack_state(PDO $db, int $userId): array
     $select->execute(['user_id' => $userId]);
     $row = $select->fetch();
 
+    // Ligne absente (joueur supprimé, session obsolète, INSERT IGNORE avalé
+    // par une clé étrangère) : on repart d'un état vide sans faire planter la page.
+    if (!$row) {
+        app_log('warning', 'user_pack_state introuvable pour le joueur ' . $userId . ' : état des paquets réinitialisé à zéro.', ['user_id' => $userId]);
+
+        return ['available' => 0, 'next_in' => null];
+    }
+
     $available = (int) $row['packs_available'];
     $last = (int) $row['last_refill_ts'];
 

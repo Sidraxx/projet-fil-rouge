@@ -41,11 +41,19 @@ try {
     $cards = draw_pack_cards($db, 5);
     save_cards_to_collection($db, $userId, $cards);
     $db->commit();
-} catch (Throwable) {
+} catch (Throwable $error) {
     if ($db->inTransaction()) {
         $db->rollBack();
     }
-    pack_json(500, ['success' => false, 'message' => 'Impossible de tirer les cartes. Vérifiez que les raretés sont calculées.']);
+
+    app_log_exception($error, 'Tirage de paquet impossible (joueur ' . $userId . ')');
+
+    pack_json(500, [
+        'success' => false,
+        'message' => $error instanceof PDOException
+            ? 'Impossible de tirer les cartes : ' . describe_database_error($error)
+            : 'Impossible de tirer les cartes. Vérifiez que les raretés sont calculées.',
+    ]);
 }
 
 pack_json(200, [

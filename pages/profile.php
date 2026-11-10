@@ -101,7 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $db->rollBack();
         }
 
-        respond_profile_json(false, 'Impossible de modifier la vitrine. Réessayez.');
+        app_log_exception($exception, 'Modification de la vitrine impossible (joueur ' . (int) $_SESSION['user_id'] . ')');
+
+        respond_profile_json(false, 'Impossible de modifier la vitrine : ' . describe_database_error($exception));
     }
 
     respond_profile_json(false, 'Action inconnue.');

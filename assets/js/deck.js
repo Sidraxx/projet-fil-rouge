@@ -218,6 +218,7 @@ async function postDeckApi(payload) {
       body: JSON.stringify(payload),
     });
   } catch (error) {
+    console.error('[deck.js] requête impossible (serveur PHP arrêté ?)', { url, error });
     warn('échec réseau / requête bloquée', { url, error });
     showFeedback('Connexion impossible. Vérifiez le serveur.');
     return null;
@@ -230,10 +231,12 @@ async function postDeckApi(payload) {
   try {
     result = JSON.parse(raw);
   } catch (error) {
+    console.error('[deck.js] réponse non JSON (redirection login ? erreur PHP ?)', { status: response.status, body: raw.slice(0, 500), error });
     warn('réponse non JSON (redirection vers login ? erreur PHP ?)', { status: response.status, body: raw.slice(0, 500), error });
   }
 
   if (!response.ok || !result?.success) {
+    console.error('[deck.js] action refusée :', { status: response.status, payload, result, body: result ? undefined : raw.slice(0, 500) });
     warn('action refusée', { status: response.status, payload, result, body: result ? undefined : raw.slice(0, 500) });
     showFeedback(result?.message || 'L\'action a échoué.');
     return null;
