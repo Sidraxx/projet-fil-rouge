@@ -20,7 +20,7 @@ Aucun framework n'est utilisé.
 
 ## Base de données SQL du projet
 
-La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutable sans erreur) :
+La base s'appelle `cinema` (déclarée dans `config.php`). Le dump principal crée aussi les tables nécessaires aux comptes, à la vitrine, aux paquets et aux decks. Les scripts complémentaires s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutables sans erreur) :
 
 | # | Script | Rôle |
 |---|--------|------|
@@ -36,7 +36,7 @@ La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécu
 1. Placer le dépôt dans `C:\wamp64\www`.
 2. Démarrer Apache et MySQL dans WAMP.
 3. Ouvrir phpMyAdmin et importer `cinema_mysql.sql` (bouton *Import*).
-4. Exécuter dans l'onglet *SQL* de la base `cinema`, un par un, les cinq scripts de la table ci-dessus, depuis `clean_movies.sql` jusqu'à `user_decks.sql`.
+4. Exécuter dans l'onglet *SQL* de la base `cinema`, un par un, les scripts de données de la table ci-dessus, depuis `clean_movies.sql` jusqu'à `rarity.sql`, puis les scripts de migration `user_cards.sql`, `user_pack_state.sql` et `user_decks.sql` si la base vient d'une ancienne version.
 5. Vérifier que les colonnes `validation_donnees` (fin de `clean_movies.sql`) et `validation_rarete` (fin de `rarity.sql`) valent `OK` dans les résultats affichés.
 6. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
