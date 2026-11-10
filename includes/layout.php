@@ -52,24 +52,7 @@ function render_start(string $title, string $active, string $root = ''): void
   <?php if ($active === 'battle'): ?>
   <link rel="stylesheet" href="<?= e($root) ?>assets/css/combat.css">
   <?php endif; ?>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Manrope', 'sans-serif'],
-            mono: ['"DM Mono"', 'monospace'],
-          },
-          colors: {
-            ink: '#0a0a0a',
-            panel: '#141414',
-            mint: '#3ddc97',
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="stylesheet" href="<?= e($root) ?>assets/css/app.css">
 </head>
 <body class="min-h-screen bg-ink font-sans text-stone-100">
   <div class="flex min-h-screen">

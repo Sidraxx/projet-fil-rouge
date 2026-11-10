@@ -6,59 +6,6 @@ require_once __DIR__ . '/../includes/layout.php';
 
 require_login('../');
 
-function respond_json(bool $success, string $message, ?string $username = null): never
-{
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'success' => $success,
-        'message' => $message,
-        'username' => $username,
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $token = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-
-    if (!hash_equals(ensure_csrf_token(), $token)) {
-        http_response_code(403);
-        respond_json(false, 'Session expirée. Rechargez la page.');
-    }
-
-    $payload = json_decode((string) file_get_contents('php://input'), true);
-    $action = is_array($payload) ? ($payload['action'] ?? '') : '';
-
-    if ($action === 'update_username') {
-        $username = trim((string) ($payload['username'] ?? ''));
-
-        if (!preg_match('/^[\p{L}0-9_.-]{3,50}$/u', $username)) {
-            respond_json(false, 'Choisissez un pseudo de 3 à 50 caractères, sans espace.');
-        }
-
-        try {
-            $db = database();
-            $check = $db->prepare('SELECT id FROM users WHERE username = :username AND id <> :id LIMIT 1');
-            $check->execute(['username' => $username, 'id' => $_SESSION['user_id']]);
-
-            if ($check->fetch()) {
-                respond_json(false, 'Ce pseudo est déjà utilisé.');
-            }
-
-            $update = $db->prepare('UPDATE users SET username = :username WHERE id = :id');
-            $update->execute(['username' => $username, 'id' => $_SESSION['user_id']]);
-        } catch (Throwable $error) {
-            app_log_exception($error, 'Enregistrement du pseudo impossible (joueur ' . (int) $_SESSION['user_id'] . ')');
-
-            respond_json(false, app_error_message($error));
-        }
-
-        $_SESSION['username'] = $username;
-        respond_json(true, 'Pseudo mis à jour.', $username);
-    }
-
-    respond_json(false, 'Action inconnue.');
-}
-
 $user = current_user('../');
 
 render_start('Paramètres', 'settings', '../');

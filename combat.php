@@ -5,26 +5,18 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/combat.php';
 require_once __DIR__ . '/includes/decks.php';
-
-header('Content-Type: application/json; charset=utf-8');
-
-function combat_json(int $status, array $payload): never
-{
-    http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
+require_once __DIR__ . '/includes/json.php';
 
 if (!isset($_SESSION['user_id'])) {
-    combat_json(401, ['success' => false, 'message' => 'Connexion requise.']);
+    json_response(['success' => false, 'message' => 'Connexion requise.'], 401);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    combat_json(405, ['success' => false, 'message' => 'Méthode non autorisée.']);
+    json_response(['success' => false, 'message' => 'Méthode non autorisée.'], 405);
 }
 
 if (!hash_equals(ensure_csrf_token(), (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''))) {
-    combat_json(403, ['success' => false, 'message' => 'Session expirée. Rechargez la page.']);
+    json_response(['success' => false, 'message' => 'Session expirée. Rechargez la page.'], 403);
 }
 
 $payload = json_decode((string) file_get_contents('php://input'), true);
@@ -35,7 +27,7 @@ try {
     if ($action === 'start') {
         $ids = is_array($payload['movie_ids'] ?? null) ? array_values(array_unique(array_map('intval', $payload['movie_ids']))) : [];
         if (count($ids) !== 4 || in_array(0, $ids, true)) {
-            combat_json(422, ['success' => false, 'message' => 'Sélectionnez exactement 4 cartes différentes.']);
+            json_response(['success' => false, 'message' => 'Sélectionnez exactement 4 cartes différentes.'], 422);
         }
 
         $activeDeckId = get_or_create_deck($db, (int) $_SESSION['user_id']);
@@ -51,7 +43,7 @@ try {
         $statement->execute(array_merge([$activeDeckId, (int) $_SESSION['user_id']], $ids));
         $movies = $statement->fetchAll();
         if (count($movies) !== 4) {
-            combat_json(422, ['success' => false, 'message' => 'Une ou plusieurs cartes ne font pas partie de votre deck actif.']);
+            json_response(['success' => false, 'message' => 'Une ou plusieurs cartes ne font pas partie de votre deck actif.'], 422);
         }
 
         $playerTeam = array_map('combat_card_from_movie', $movies);
@@ -60,7 +52,7 @@ try {
             $_SESSION['combat_preview_enemy_ids'] ?? []
         )));
         if (count($previewIds) < 4) {
-            combat_json(409, ['success' => false, 'message' => 'L’aperçu adverse est indisponible. Rechargez le lobby.']);
+            json_response(['success' => false, 'message' => 'L’aperçu adverse est indisponible. Rechargez le lobby.'], 409);
         }
 
         shuffle($previewIds);
@@ -76,7 +68,7 @@ try {
         $enemyStatement->execute($enemyIds);
         $enemyTeam = array_map('combat_card_from_movie', $enemyStatement->fetchAll());
         if (count($enemyTeam) !== 4) {
-            combat_json(500, ['success' => false, 'message' => 'Impossible de préparer l’adversaire.']);
+            json_response(['success' => false, 'message' => 'Impossible de préparer l’adversaire.'], 500);
         }
 
         $_SESSION['combat'] = [
@@ -89,88 +81,88 @@ try {
             'log' => ['Le combat commence. Vous avez ' . COMBAT_STARTING_ENERGY . ' points d’énergie. Vous récupérez ' . COMBAT_ENERGY_REGEN . ' énergie au début de chaque tour.'],
         ];
         unset($_SESSION['combat_preview_enemy_ids']);
-        combat_json(200, ['success' => true, 'state' => combat_public_state($_SESSION['combat'])]);
+        json_response(['success' => true, 'state' => combat_public_state($_SESSION['combat'])]);
     }
 
     if (!isset($_SESSION['combat']) || !is_array($_SESSION['combat'])) {
-        combat_json(409, ['success' => false, 'message' => 'Aucun combat en cours.']);
+        json_response(['success' => false, 'message' => 'Aucun combat en cours.'], 409);
     }
 
     $state = &$_SESSION['combat'];
     if (combat_status($state) !== 'playing') {
-        combat_json(409, ['success' => false, 'message' => 'Ce combat est terminé.', 'state' => combat_public_state($state)]);
+        json_response(['success' => false, 'message' => 'Ce combat est terminé.', 'state' => combat_public_state($state)], 409);
     }
 
     if ($action === 'attack') {
         if ($state['turn'] !== 'player') {
-            combat_json(409, ['success' => false, 'message' => 'Ce n’est pas votre tour.']);
+            json_response(['success' => false, 'message' => 'Ce n’est pas votre tour.'], 409);
         }
         $attackIndex = (int) ($payload['attack_index'] ?? -1);
         $attackerIndex = (int) ($payload['attacker_index'] ?? $state['player_active']);
         $targetIndex = (int) ($payload['target_index'] ?? $state['enemy_active']);
         $result = combat_apply_attack($state, 'player', $attackerIndex, $attackIndex, 'enemy', $targetIndex);
         if (!$result['success']) {
-            combat_json(422, $result);
+            json_response($result, 422);
         }
         combat_log($state, 'Il vous reste ' . $state['player']['energy'] . ' énergie.');
-        combat_json(200, ['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
+        json_response(['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
     }
 
     if ($action === 'effect') {
         if ($state['turn'] !== 'player') {
-            combat_json(409, ['success' => false, 'message' => 'Ce n’est pas votre tour.']);
+            json_response(['success' => false, 'message' => 'Ce n’est pas votre tour.'], 409);
         }
         $targetSide = (string) ($payload['target_side'] ?? 'player');
         if (!in_array($targetSide, ['player', 'enemy'], true)) {
-            combat_json(422, ['success' => false, 'message' => 'Cible invalide.']);
+            json_response(['success' => false, 'message' => 'Cible invalide.'], 422);
         }
         $targetIndex = (int) ($payload['target_index'] ?? $state[$targetSide . '_active']);
         $sourceIndex = (int) ($payload['source_index'] ?? $state['player_active']);
         $result = combat_apply_effect($state, 'player', $targetSide, $targetIndex, $sourceIndex);
         if (!$result['success']) {
-            combat_json(422, $result);
+            json_response($result, 422);
         }
-        combat_json(200, ['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
+        json_response(['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
     }
 
     if ($action === 'focus') {
         if ($state['turn'] !== 'player') {
-            combat_json(409, ['success' => false, 'message' => 'Ce n’est pas votre tour.']);
+            json_response(['success' => false, 'message' => 'Ce n’est pas votre tour.'], 409);
         }
         $result = combat_apply_focus($state, 'player');
         if (!$result['success']) {
-            combat_json(422, $result);
+            json_response($result, 422);
         }
-        combat_json(200, ['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
+        json_response(['success' => true, 'result' => $result, 'state' => combat_public_state($state)]);
     }
 
     if ($action === 'switch') {
         if ($state['turn'] !== 'player') {
-            combat_json(409, ['success' => false, 'message' => 'Ce n’est pas votre tour.']);
+            json_response(['success' => false, 'message' => 'Ce n’est pas votre tour.'], 409);
         }
         $index = (int) ($payload['index'] ?? -1);
         if (!combat_select_next_active($state, 'player', $index)) {
-            combat_json(422, ['success' => false, 'message' => 'Cette carte est indisponible.']);
+            json_response(['success' => false, 'message' => 'Cette carte est indisponible.'], 422);
         }
         combat_log($state, $state['player']['team'][$index]['title'] . ' entre en jeu.');
-        combat_json(200, ['success' => true, 'state' => combat_public_state($state)]);
+        json_response(['success' => true, 'state' => combat_public_state($state)]);
     }
 
     if ($action === 'end_turn') {
         if ($state['turn'] !== 'player') {
-            combat_json(409, ['success' => false, 'message' => 'Ce n’est pas votre tour.']);
+            json_response(['success' => false, 'message' => 'Ce n’est pas votre tour.'], 409);
         }
         $state['turn'] = 'enemy';
         combat_ai_turn($state);
-        combat_json(200, ['success' => true, 'state' => combat_public_state($state)]);
+        json_response(['success' => true, 'state' => combat_public_state($state)]);
     }
 
     if ($action === 'cancel') {
         unset($_SESSION['combat']);
-        combat_json(200, ['success' => true]);
+        json_response(['success' => true]);
     }
 
-    combat_json(422, ['success' => false, 'message' => 'Action inconnue.']);
+    json_response(['success' => false, 'message' => 'Action inconnue.'], 422);
 } catch (Throwable $exception) {
-    combat_json(500, ['success' => false, 'message' => 'Impossible de traiter cette action de combat.']);
+    json_response(['success' => false, 'message' => 'Impossible de traiter cette action de combat.'], 500);
 }

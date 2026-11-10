@@ -20,7 +20,7 @@ Aucun framework n'est utilisé.
 
 ## Base de données SQL du projet
 
-La base s'appelle `cinema` (déclarée dans `config.php`). Le dump principal crée aussi les tables nécessaires aux comptes, à la vitrine, aux paquets et aux decks. Les scripts complémentaires s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutables sans erreur) :
+La base s'appelle `cinema`. La connexion se configure avec les variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD`, ou dans un fichier local copié depuis `includes/database.local.php.example` vers `includes/database.local.php`. Le dump principal crée aussi les tables nécessaires aux comptes, à la vitrine, aux paquets et aux decks. Les scripts complémentaires s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutables sans erreur) :
 
 | # | Script | Rôle |
 |---|--------|------|
@@ -40,7 +40,7 @@ La base s'appelle `cinema` (déclarée dans `config.php`). Le dump principal cr�
 5. Vérifier que les colonnes `validation_donnees` (fin de `clean_movies.sql`) et `validation_rarete` (fin de `rarity.sql`) valent `OK` dans les résultats affichés.
 6. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
-Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
+Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs peuvent être placées dans le fichier local ignoré ou définies dans l'environnement.
 
 ## Lancer le projet sous macOS
 

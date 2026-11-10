@@ -4,10 +4,20 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/errors.php';
 
-const DB_HOST = 'localhost';
-const DB_NAME = 'cinema';
-const DB_USER = 'root';
-const DB_PASSWORD = '';
+$localConfigFile = __DIR__ . '/includes/database.local.php';
+$localConfig = is_file($localConfigFile) ? require $localConfigFile : [];
+
+if (!is_array($localConfig)) {
+    $localConfig = [];
+}
+
+$databaseConfig = [
+    'host' => getenv('DB_HOST') ?: ($localConfig['host'] ?? 'localhost'),
+    'name' => getenv('DB_NAME') ?: ($localConfig['name'] ?? 'cinema'),
+    'user' => getenv('DB_USER') ?: ($localConfig['user'] ?? 'root'),
+    'password' => getenv('DB_PASSWORD') ?: ($localConfig['password'] ?? ''),
+    'port' => getenv('DB_PORT') ?: ($localConfig['port'] ?? '3306'),
+];
 
 /**
  * Connexion PDO partagée.
@@ -26,9 +36,9 @@ function database(): PDO
 
     try {
         $connection = new PDO(
-            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4',
-            DB_USER,
-            DB_PASSWORD,
+            'mysql:host=' . $databaseConfig['host'] . ';port=' . $databaseConfig['port'] . ';dbname=' . $databaseConfig['name'] . ';charset=utf8mb4',
+            $databaseConfig['user'],
+            $databaseConfig['password'],
             [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -40,11 +50,11 @@ function database(): PDO
 
         throw app_database_exception(
             $exception,
-            'Connexion à la base « ' . DB_NAME . ' » sur ' . DB_HOST . ' impossible'
+            'Connexion à la base de données impossible'
         );
     }
 
-    app_log('info', 'Connexion MySQL établie sur « ' . DB_NAME . ' » (' . DB_HOST . ').');
+    app_log('info', 'Connexion MySQL établie.');
 
     return $connection;
 }

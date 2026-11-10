@@ -4,27 +4,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/decks.php';
-
-header('Content-Type: application/json; charset=utf-8');
-
-function deck_json(int $status, array $payload): never
-{
-    http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
-    exit;
-}
+require_once __DIR__ . '/includes/json.php';
 
 if (!isset($_SESSION['user_id'])) {
-    deck_json(401, ['success' => false, 'message' => 'Connexion requise.']);
+    json_response(['success' => false, 'message' => 'Connexion requise.'], 401);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    deck_json(405, ['success' => false, 'message' => 'Méthode non autorisée.']);
+    json_response(['success' => false, 'message' => 'Méthode non autorisée.'], 405);
 }
 
 $token = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
 if (!hash_equals(ensure_csrf_token(), $token)) {
-    deck_json(403, ['success' => false, 'message' => 'Session expirée. Rechargez la page.']);
+    json_response(['success' => false, 'message' => 'Session expirée. Rechargez la page.'], 403);
 }
 
 $db = database();
@@ -38,7 +30,7 @@ $action = (string) ($data['action'] ?? '');
 
 $deckActions = ['add', 'remove', 'create', 'rename', 'switch', 'delete'];
 if (!in_array($action, $deckActions, true)) {
-    deck_json(400, ['success' => false, 'message' => 'Action inconnue.']);
+    json_response(['success' => false, 'message' => 'Action inconnue.'], 400);
 }
 
 try {
@@ -50,7 +42,7 @@ try {
         $decks = load_user_decks($db, $userId);
         $db->commit();
 
-        deck_json(200, [
+        json_response([
             'success' => true,
             'deckId' => $createdId,
             'decks' => $decks,
@@ -62,7 +54,7 @@ try {
         $decks = load_user_decks($db, $userId);
         $db->commit();
 
-        deck_json(200, [
+        json_response([
             'success' => true,
             'deckId' => $deckId,
             'decks' => $decks,
@@ -73,7 +65,7 @@ try {
         switch_active_deck($db, $userId, $deckId);
         $db->commit();
 
-        deck_json(200, [
+        json_response([
             'success' => true,
             'deckId' => $deckId,
         ]);
@@ -85,7 +77,7 @@ try {
         $decks = load_user_decks($db, $userId);
         $db->commit();
 
-        deck_json(200, [
+        json_response([
             'success' => true,
             'deckId' => $activeId,
             'decks' => $decks,
@@ -120,7 +112,7 @@ try {
         $db->rollBack();
     }
 
-    deck_json(500, ['success' => false, 'message' => $error->getMessage()]);
+    json_response(['success' => false, 'message' => $error->getMessage()], 500);
 } catch (RuntimeException $error) {
     if ($db->inTransaction()) {
         $db->rollBack();
@@ -129,7 +121,7 @@ try {
     // Refus métier (deck plein, carte non possédée...) : ce n'est pas une panne.
     app_log('warning', 'Deck refusé (' . $action . ') : ' . $error->getMessage(), ['user_id' => $userId, 'deck_id' => $deckId]);
 
-    deck_json(400, ['success' => false, 'message' => $error->getMessage()]);
+    json_response(['success' => false, 'message' => $error->getMessage()], 400);
 } catch (Throwable $error) {
     if ($db->inTransaction()) {
         $db->rollBack();
@@ -137,15 +129,15 @@ try {
 
     app_log_exception($error, 'Mise à jour du deck impossible (action ' . $action . ')');
 
-    deck_json(500, [
+    json_response([
         'success' => false,
         'message' => $error instanceof PDOException
             ? 'Impossible de mettre à jour le deck : ' . describe_database_error($error)
             : 'Impossible de mettre à jour le deck : une erreur interne est survenue.',
-    ]);
+    ], 500);
 }
 
-deck_json(200, [
+json_response([
     'success' => true,
     'deckId' => $deckId,
     'count' => $status['count'],

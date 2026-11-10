@@ -3,20 +3,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/json.php';
 
 session_start();
-
-function respond(bool $success, string $message, ?string $redirect = null, int $statusCode = 200): never
-{
-    http_response_code($success ? $statusCode : ($statusCode === 200 ? 400 : $statusCode));
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-      'success' => $success,
-      'message' => $message,
-      'redirect' => $redirect,
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
 
 function ensureLoginAttemptsTable(PDO $db): void
 {
@@ -39,12 +28,10 @@ function clientIpAddress(): string
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
+    json_response([
       'authenticated' => isset($_SESSION['user_id']),
       'redirect' => 'auth.php',
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
+    ]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && !isset($_GET['action']) && isset($_SESSION['user_id'])) {
@@ -95,22 +82,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $confirmation = (string) ($payload['password_confirmation'] ?? '');
 
             if (!preg_match('/^[\p{L}0-9_.-]{3,50}$/u', $username)) {
-                respond(false, 'Choisissez un pseudo de 3 à 50 caractères, sans espace.');
+                json_response(['success' => false, 'message' => 'Choisissez un pseudo de 3 à 50 caractères, sans espace.'], 400);
             }
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                respond(false, 'Saisissez une adresse e-mail valide.');
+                json_response(['success' => false, 'message' => 'Saisissez une adresse e-mail valide.'], 400);
             }
             if (strlen($password) < 8) {
-                respond(false, 'Le mot de passe doit contenir au moins 8 caractères.');
+                json_response(['success' => false, 'message' => 'Le mot de passe doit contenir au moins 8 caractères.'], 400);
             }
             if ($password !== $confirmation) {
-                respond(false, 'Les mots de passe ne correspondent pas.');
+                json_response(['success' => false, 'message' => 'Les mots de passe ne correspondent pas.'], 400);
             }
 
             $existing = $db->prepare('SELECT id FROM users WHERE username = :username OR email = :email LIMIT 1');
             $existing->execute(['username' => $username, 'email' => $email]);
             if ($existing->fetch()) {
-                respond(false, 'Ce pseudo ou cette adresse e-mail est déjà utilisé.');
+                json_response(['success' => false, 'message' => 'Ce pseudo ou cette adresse e-mail est déjà utilisé.'], 400);
             }
 
             $statement = $db->prepare('INSERT INTO users (username, email, password_hash) VALUES (:username, :email, :password_hash)');
@@ -122,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $db->lastInsertId();
             $_SESSION['username'] = $username;
-            respond(true, 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'index.php');
+            json_response(['success' => true, 'message' => 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'redirect' => 'index.php']);
         }
 
         if ($action === 'login') {
@@ -143,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ((int) $attempts->fetchColumn() >= $maxLoginAttempts) {
-                respond(false, 'Trop de tentatives de connexion. Réessayez dans 15 minutes.', null, 429);
+                json_response(['success' => false, 'message' => 'Trop de tentatives de connexion. Réessayez dans 15 minutes.'], 429);
             }
 
             $statement = $db->prepare('SELECT id, username, password_hash FROM users WHERE email = :email LIMIT 1');
@@ -159,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'email' => $email,
                     'ip_address' => $ipAddress,
                 ]);
-                respond(false, 'E-mail ou mot de passe incorrect.');
+                json_response(['success' => false, 'message' => 'E-mail ou mot de passe incorrect.'], 400);
             }
 
             $clearAttempts = $db->prepare(
@@ -172,20 +159,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];
-            respond(true, 'Connexion réussie. Votre prochaine carte vous attend.', 'index.php');
+            json_response(['success' => true, 'message' => 'Connexion réussie. Votre prochaine carte vous attend.', 'redirect' => 'index.php']);
 
         }
 
-        respond(false, 'Action inconnue.');
+        json_response(['success' => false, 'message' => 'Action inconnue.'], 400);
     } catch (PDOException $exception) {
         app_log_exception($exception, 'Authentification impossible');
-        respond(false, 'Connexion à la base « ' . DB_NAME . ' » impossible : ' . describe_database_error($exception));
+        json_response(['success' => false, 'message' => 'Connexion impossible : ' . describe_database_error($exception)], 500);
     } catch (AppDatabaseException $exception) {
         // Message déjà traduit par config.php / app_database_exception().
-        respond(false, $exception->getMessage());
+        json_response(['success' => false, 'message' => $exception->getMessage()], 500);
     } catch (Throwable $exception) {
         app_log_exception($exception, 'Authentification impossible');
-        respond(false, 'Impossible de finaliser la connexion : une erreur interne est survenue.');
+        json_response(['success' => false, 'message' => 'Impossible de finaliser la connexion : une erreur interne est survenue.'], 500);
     }
 }
 ?>
@@ -235,37 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     </section>
   </main>
-  <script>
-    const tabs = document.querySelectorAll('.tab');
-    const forms = document.querySelectorAll('.form');
-    const message = document.querySelector('#message');
-    const panelTitle = document.querySelector('#panel-title');
-    const panelSubtitle = document.querySelector('#panel-subtitle');
-    function setMode(mode) {
-      const isLogin = mode === 'login';
-      tabs.forEach((tab) => { const active = tab.id === `${mode}-tab`; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', active); });
-      forms.forEach((form) => form.classList.toggle('active', form.dataset.action === mode));
-      panelTitle.textContent = isLogin ? 'Ravi de vous revoir' : 'Entrez dans la partie';
-      panelSubtitle.textContent = isLogin ? 'Connectez-vous pour retrouver votre deck.' : 'Créez votre compte et commencez votre collection.';
-      message.textContent = ''; message.className = 'message';
-    }
-    tabs.forEach((tab) => tab.addEventListener('click', () => setMode(tab.id.replace('-tab', ''))));
-    forms.forEach((form) => form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const submit = form.querySelector('.submit');
-      const data = Object.fromEntries(new FormData(form));
-      if (!form.checkValidity()) { form.reportValidity(); return; }
-      if (form.dataset.action === 'register' && data.password !== data.password_confirmation) { message.textContent = 'Les mots de passe ne correspondent pas.'; message.className = 'message error'; return; }
-      submit.disabled = true; message.textContent = 'Chargement de votre collection...'; message.className = 'message';
-      try {
-        const response = await fetch('auth.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: form.dataset.action, ...data }) });
-        const result = await response.json();
-        if (!result.success) { console.error('[auth] action refusée :', { status: response.status, message: result.message }); }
-        message.textContent = result.message || 'Une erreur est survenue.'; message.className = `message ${result.success ? 'success' : 'error'}`;
-        if (result.success && result.redirect) { window.location.assign(result.redirect); }
-      } catch (error) { console.error('[auth] requête impossible (serveur PHP arrêté ?) :', error); message.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.'; message.className = 'message error'; } finally { submit.disabled = false; }
-    }));
-  </script>
+  <script src="assets/js/auth.js"></script>
 <?= app_console_script() ?>
 </body>
 </html>

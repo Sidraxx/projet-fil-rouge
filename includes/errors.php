@@ -95,12 +95,11 @@ function describe_database_error(PDOException $exception): string
 {
     $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
     $code = (int) ($exception->errorInfo[1] ?? $exception->getCode());
-    $database = defined('DB_NAME') ? DB_NAME : 'cinema';
-    $host = defined('DB_HOST') ? DB_HOST : 'localhost';
+    $host = getenv('DB_HOST') ?: 'localhost';
 
     return match (true) {
         $code === 1045 => 'MySQL refuse l’utilisateur configuré : vérifiez DB_USER et DB_PASSWORD dans config.php.',
-        $code === 1049 => 'La base de données « ' . $database . ' » n’existe pas encore : importez cinema_mysql.sql.',
+        $code === 1049 => 'La base de données configurée n’existe pas encore : importez cinema_mysql.sql.',
         $code === 1146 => 'Une table attendue par l’application est absente : exécutez les scripts de database/ dans l’ordre décrit dans le README.',
         $code === 1054 => 'Une colonne attendue par l’application manque : le schéma de la base est plus ancien que le code. Réexécutez le script database/ concerné (par exemple database/user_decks.sql).',
         $code === 1062 => 'La base contient encore une contrainte d’unicité ancienne (un seul deck par joueur). Réexécutez database/user_decks.sql pour la migrer.',

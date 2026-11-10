@@ -1,4 +1,3 @@
-cinema_mysql.sql
 bdd_abs_cin.sql
 .env
 includes/database.local.php
@@ -9,5 +8,6 @@ includes/database.local.php
 Thumbs.db
 desktop.ini
 vendor/
+node_modules/
 .phpunit.cache/
 .phpunit.result.cache

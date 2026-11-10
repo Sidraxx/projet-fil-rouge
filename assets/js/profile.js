@@ -29,7 +29,7 @@ async function updateShowcase(payload) {
   setShowcaseMessage('Enregistrement...');
 
   try {
-    const response = await fetch('profile.php', {
+    const response = await fetch('../profile-api.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
