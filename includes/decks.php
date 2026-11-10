@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 /**
  * Règles mesurables du deck (issue [Deck] Définir les règles d'un deck) :
  *   - taille maximale : 10 cartes ;
@@ -128,6 +130,7 @@ function load_deck_cards(PDO $db, int $deckId): array
     foreach ($rows as &$row) {
         $row['quantity'] = (int) $row['quantity'];
         $row['id'] = (int) $row['id'];
+        $row['poster'] = movie_poster_url($row['poster']);
     }
     unset($row);
 
@@ -263,6 +266,7 @@ function load_deck_available_cards(PDO $db, int $userId, int $deckId): array
 
     foreach ($rows as &$row) {
         $row['id'] = (int) $row['id'];
+        $row['poster'] = movie_poster_url($row['poster']);
         $row['owned'] = (int) $row['owned'];
         $row['in_deck'] = (int) $row['in_deck'];
     }
@@ -283,7 +287,13 @@ function load_user_decks(PDO $db, int $userId): array
             d.name,
             d.is_active,
             d.created_at,
-            COALESCE(SUM(dc.quantity), 0) AS cards
+            COALESCE(SUM(dc.quantity), 0) AS cards,
+            (SELECT m.poster_link
+             FROM deck_cards first_dc
+             INNER JOIN movies m ON m.id = first_dc.movie_id
+             WHERE first_dc.deck_id = d.id
+             ORDER BY first_dc.created_at ASC, first_dc.movie_id ASC
+             LIMIT 1) AS cover
          FROM user_decks d
          LEFT JOIN deck_cards dc ON dc.deck_id = d.id
          WHERE d.user_id = :user_id
@@ -297,6 +307,7 @@ function load_user_decks(PDO $db, int $userId): array
         $row['id'] = (int) $row['id'];
         $row['is_active'] = (bool) $row['is_active'];
         $row['cards'] = (int) $row['cards'];
+        $row['cover'] = movie_poster_url($row['cover']);
     }
     unset($row);
 
