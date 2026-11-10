@@ -55,13 +55,25 @@ try {
         }
 
         $playerTeam = array_map('combat_card_from_movie', $movies);
-        $enemyStatement = $db->query(
+        $previewIds = array_values(array_unique(array_map(
+            'intval',
+            $_SESSION['combat_preview_enemy_ids'] ?? []
+        )));
+        if (count($previewIds) < 4) {
+            combat_json(409, ['success' => false, 'message' => 'L’aperçu adverse est indisponible. Rechargez le lobby.']);
+        }
+
+        shuffle($previewIds);
+        $enemyIds = array_slice($previewIds, 0, 4);
+        $enemyPlaceholders = implode(',', array_fill(0, count($enemyIds), '?'));
+        $enemyStatement = $db->prepare(
             'SELECT id, title, poster_link, genre
              FROM movies
              WHERE genre IS NOT NULL
-             ORDER BY RAND()
-             LIMIT 4'
+               AND id IN (' . $enemyPlaceholders . ')
+             ORDER BY RAND()'
         );
+        $enemyStatement->execute($enemyIds);
         $enemyTeam = array_map('combat_card_from_movie', $enemyStatement->fetchAll());
         if (count($enemyTeam) !== 4) {
             combat_json(500, ['success' => false, 'message' => 'Impossible de préparer l’adversaire.']);
@@ -76,6 +88,7 @@ try {
             'enemy' => ['energy' => COMBAT_STARTING_ENERGY, 'focus_used' => false, 'team' => $enemyTeam],
             'log' => ['Le combat commence. Vous avez ' . COMBAT_STARTING_ENERGY . ' points d’énergie. Vous récupérez ' . COMBAT_ENERGY_REGEN . ' énergie au début de chaque tour.'],
         ];
+        unset($_SESSION['combat_preview_enemy_ids']);
         combat_json(200, ['success' => true, 'state' => combat_public_state($_SESSION['combat'])]);
     }
 

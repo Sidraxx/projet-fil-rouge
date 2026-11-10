@@ -14,6 +14,18 @@ $decks = load_user_decks($db, $userId);
 $activeDeck = $decks[0] ?? ['name' => 'Mon deck', 'cards' => 0];
 $cards = load_deck_cards($db, $activeDeckId);
 $hasEnoughCards = count($cards) >= 4;
+$enemyPreviewStatement = $db->query(
+    'SELECT id, title, poster_link AS poster, genre, rarity_level AS rarity
+     FROM movies
+     WHERE genre IS NOT NULL
+     ORDER BY RAND()
+     LIMIT 10'
+);
+$enemyPreview = $enemyPreviewStatement->fetchAll();
+$_SESSION['combat_preview_enemy_ids'] = array_map(
+    static fn (array $card): int => (int) $card['id'],
+    $enemyPreview
+);
 
 render_start('Combat', 'battle', '../');
 ?>
@@ -70,6 +82,29 @@ render_start('Combat', 'battle', '../');
                 </div>
               </button>
             <?php endforeach; ?>
+            </div>
+          </div>
+          <div class="combat-opponent-preview">
+            <div class="combat-lobby-panel__top">
+              <div>
+                <p class="font-mono text-[10px] uppercase tracking-[0.18em] text-red-300/70">Aperçu adverse</p>
+                <h2 class="mt-1 text-xl font-semibold">Le deck du système</h2>
+              </div>
+              <span class="rounded-full border border-red-300/20 bg-red-300/10 px-3 py-2 text-xs text-red-200">10 cartes · 4 seront jouées</span>
+            </div>
+            <p class="mb-3 text-xs text-stone-500">Observez les types adverses, puis choisissez les 4 cartes les plus adaptées à ce duel.</p>
+            <div class="combat-opponent-grid" aria-label="Aperçu des dix cartes adverses">
+              <?php foreach ($enemyPreview as $card): ?>
+                <div class="combat-opponent-card">
+                  <?php if ($card['poster']): ?>
+                    <img src="<?= e($card['poster']) ?>" alt="" loading="lazy">
+                  <?php else: ?>
+                    <span><?= e(mb_strtoupper(mb_substr($card['title'], 0, 2))) ?></span>
+                  <?php endif; ?>
+                  <strong><?= e($card['title']) ?></strong>
+                  <small><?= e($card['genre'] ?? 'Genre inconnu') ?></small>
+                </div>
+              <?php endforeach; ?>
             </div>
           </div>
           <div class="mt-5 flex flex-col items-center gap-3">
