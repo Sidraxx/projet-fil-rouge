@@ -15,6 +15,7 @@ $statement = database()->prepare(
 );
 $statement->execute(['user_id' => (int) $_SESSION['user_id']]);
 $cards = $statement->fetchAll();
+$hasEnoughCards = count($cards) >= 4;
 
 render_start('Combat', 'battle', '../');
 ?>
@@ -30,14 +31,14 @@ render_start('Combat', 'battle', '../');
       </header>
 
       <section id="team-builder" class="mt-8">
-        <?php if (count($cards) < 4): ?>
+        <?php if (!$hasEnoughCards): ?>
           <div class="rounded-2xl border border-dashed border-white/10 px-6 py-16 text-center">
             <p class="text-lg font-semibold">Votre équipe n'est pas encore complète</p>
             <p class="mt-2 text-sm text-stone-500">Obtenez au moins 4 cartes dans un paquet avant de lancer un combat.</p>
             <a href="../index.php" class="mt-5 inline-flex rounded-full bg-mint px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300">Ouvrir un paquet</a>
           </div>
         <?php else: ?>
-          <div id="team-grid" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div id="team-grid" class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Cartes disponibles">
             <?php foreach ($cards as $card): ?>
               <button
                 type="button"
@@ -51,7 +52,7 @@ render_start('Combat', 'battle', '../');
                   <?php else: ?>
                     <div class="grid h-full place-items-center text-3xl font-semibold text-mint"><?= e(mb_strtoupper(mb_substr($card['title'], 0, 2))) ?></div>
                   <?php endif; ?>
-                  <span class="absolute left-2 top-2 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] font-semibold text-stone-200"><?= e($card['rarity'] ?? 'Carte') ?></span>
+                  <span class="absolute left-2 top-2 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] font-semibold text-stone-200"><?= e($card['rarity'] ?: 'Carte') ?></span>
                   <span class="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] text-stone-300">x<?= (int) $card['quantity'] ?></span>
                 </div>
                 <div class="p-3">
@@ -69,19 +70,35 @@ render_start('Combat', 'battle', '../');
       </section>
 
       <section id="combat-board" class="hidden" aria-live="polite">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p class="font-mono text-[10px] uppercase tracking-[0.22em] text-mint">Combat en cours</p>
-            <h2 class="mt-2 text-2xl font-semibold">Le terrain</h2>
+        <div class="combat-hud">
+          <div class="combat-hud__resources">
+            <div class="combat-resource combat-resource--energy">
+              <span class="combat-resource__icon">✦</span>
+              <span id="combat-energy">5 / 12</span>
+              <small>ÉNERGIE</small>
+            </div>
+            <div class="combat-resource combat-resource--focus">
+              <span class="combat-resource__icon">✚</span>
+              <span>+2</span>
+              <small>CONCENTRATION</small>
+            </div>
           </div>
-          <div id="combat-energy" class="rounded-full border border-mint/30 bg-mint/10 px-4 py-2 text-sm font-semibold text-mint"></div>
+          <div class="combat-hud__title">
+            <p>Absolute Cinema</p>
+            <strong>DUEL DES CARTES</strong>
+          </div>
+          <div class="combat-turn">
+            <span class="combat-turn__pulse"></span>
+            <small>TOUR EN COURS</small>
+            <strong id="combat-turn-label">VOTRE TOUR</strong>
+          </div>
         </div>
         <div id="combat-message" class="mt-4 min-h-6 text-sm text-stone-400" role="status"></div>
-        <div class="combat-field mt-6 rounded-3xl border border-white/10 bg-[#0d1110] p-3 sm:p-5">
+        <div class="combat-field mt-6 rounded-3xl border border-white/10 p-3 sm:p-5">
           <section class="combat-side combat-side--enemy" aria-labelledby="enemy-team-title">
             <div class="combat-side__header">
               <h3 id="enemy-team-title" class="font-semibold">Adversaire</h3>
-              <span class="text-xs text-stone-500">Système · 4 cartes</span>
+              <span class="combat-side__badge">SYSTÈME · 4 CARTES</span>
             </div>
             <div id="enemy-team" class="combat-side__cards"></div>
           </section>
@@ -91,7 +108,8 @@ render_start('Combat', 'battle', '../');
           <section class="combat-side combat-side--player" aria-labelledby="player-team-title">
             <div class="combat-side__header">
               <h3 id="player-team-title" class="font-semibold">Votre équipe</h3>
-              <div class="flex items-center gap-2">
+              <div class="ml-auto flex items-center gap-2">
+                <span class="combat-side__badge">JOUEUR · 4 CARTES</span>
                 <button id="focus-energy" type="button" class="rounded-full border border-violet-400/30 bg-violet-400/10 px-3 py-2 text-xs font-medium text-violet-200 transition hover:bg-violet-400/20">Concentration +2</button>
                 <button id="end-turn" type="button" class="rounded-full border border-white/10 px-4 py-2 text-xs font-medium text-stone-300 transition hover:bg-white/5">Terminer le tour</button>
               </div>
