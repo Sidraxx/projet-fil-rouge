@@ -6,6 +6,7 @@ const cards = [...document.querySelectorAll('[data-card]')];
 const resultCount = document.querySelector('#result-count');
 const emptyState = document.querySelector('#collection-empty');
 const selectionButton = document.querySelector('#selection-button');
+const collectionMessage = document.querySelector('#collection-message');
 const movieDialog = document.querySelector('#movie-dialog');
 const movieDialogClose = movieDialog.querySelector('[data-movie-dialog-close]');
 const movieDialogPoster = document.querySelector('#movie-dialog-poster');
@@ -152,13 +153,47 @@ rarityButtons.forEach((button) => {
 cards.forEach((card) => {
   const favoriteButton = card.querySelector('[data-favorite-toggle]');
 
-  favoriteButton.addEventListener('click', (event) => {
+  favoriteButton.addEventListener('click', async (event) => {
     event.stopPropagation();
     const favorite = card.dataset.favorite !== 'true';
-    card.dataset.favorite = String(favorite);
-    favoriteButton.setAttribute('aria-pressed', String(favorite));
-    favoriteButton.textContent = favorite ? 'Favori' : 'Ajouter';
-    renderCollection();
+    const previousLabel = favoriteButton.textContent;
+
+    favoriteButton.disabled = true;
+    collectionMessage.textContent = 'Enregistrement du favori...';
+    collectionMessage.className = 'min-h-5 text-sm text-stone-500';
+
+    try {
+      const response = await fetch('collection.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+        },
+        body: JSON.stringify({
+          action: 'set_favorite',
+          movie_id: Number(card.dataset.movieId),
+          favorite,
+        }),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Impossible de modifier le favori.');
+      }
+
+      card.dataset.favorite = String(result.favorite);
+      favoriteButton.setAttribute('aria-pressed', String(result.favorite));
+      favoriteButton.textContent = result.favorite ? 'Favori' : 'Ajouter';
+      collectionMessage.textContent = result.message;
+      collectionMessage.className = 'min-h-5 text-sm text-mint';
+      renderCollection();
+    } catch (error) {
+      favoriteButton.textContent = previousLabel;
+      collectionMessage.textContent = error.message || 'Impossible de modifier le favori.';
+      collectionMessage.className = 'min-h-5 text-sm text-red-400';
+    } finally {
+      favoriteButton.disabled = false;
+    }
   });
 
   card.addEventListener('click', () => {
