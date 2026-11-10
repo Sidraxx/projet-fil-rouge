@@ -6,7 +6,7 @@ Le projet est réalisé par Hugo, Antonio et Siloe dans le cadre de leur formati
 
 ## État actuel
 
-L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés et le combat contre le système sont en place.
+L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés, l'ouverture de paquets, la collection, le constructeur de deck et le combat contre le système sont en place.
 
 ## Stack
 
@@ -14,24 +14,56 @@ L'authentification, la base initiale de 1 000 films, le nettoyage des données, 
 - CSS
 - JavaScript
 - PHP
-- MySQL avec WAMP
+- MySQL (WAMP sous Windows, MySQL via Homebrew sous macOS)
 
 Aucun framework n'est utilisé.
 
-## Lancer le projet avec WAMP
+## Base de données SQL du projet
+
+La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutable sans erreur) :
+
+| # | Script | Rôle |
+|---|--------|------|
+| 1 | `cinema_mysql.sql` | dump principal : 1 000 films |
+| 2 | `database/clean_movies.sql` | nettoyage des données |
+| 3 | `database/rarity.sql` | calcul des raretés |
+| 4 | `database/user_cards.sql` | cartes obtenues par les joueurs |
+| 5 | `database/user_pack_state.sql` | paquets disponibles par joueur |
+| 6 | `database/user_decks.sql` | decks nommés par joueur et leurs cartes |
+
+## Lancer le projet sous Windows (WAMP)
 
 1. Placer le dépôt dans `C:\wamp64\www`.
 2. Démarrer Apache et MySQL dans WAMP.
-3. Importer `cinema_mysql.sql` dans phpMyAdmin.
-4. Exécuter `database/clean_movies.sql`.
-5. Exécuter `database/rarity.sql`.
-6. Exécuter `database/user_pack_state.sql` (table des paquets disponibles par utilisateur).
-7. Vérifier que `validation_donnees` et `validation_rarete` valent `OK`.
-8. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
+3. Ouvrir phpMyAdmin et importer `cinema_mysql.sql` (bouton *Import*).
+4. Exécuter dans l'onglet *SQL* de la base `cinema`, un par un, les cinq scripts de la table ci-dessus, depuis `clean_movies.sql` jusqu'à `user_decks.sql`.
+5. Vérifier que les colonnes `validation_donnees` (fin de `clean_movies.sql`) et `validation_rarete` (fin de `rarity.sql`) valent `OK` dans les résultats affichés.
+6. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
-Le projet utilise la base MySQL `cinema`. Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
+Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
 
-Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP.
+## Lancer le projet sous macOS
+
+```bash
+# Prérequis (une seule fois)
+brew install php mysql
+brew services start mysql        # MySQL doit tourner sur localhost:3306
+
+# Import depuis la racine du dépôt (le dump crée lui-même la base `cinema`)
+mysql -u root < cinema_mysql.sql
+mysql -u root cinema < database/clean_movies.sql
+mysql -u root cinema < database/rarity.sql
+mysql -u root cinema < database/user_cards.sql
+mysql -u root cinema < database/user_pack_state.sql
+mysql -u root cinema < database/user_decks.sql
+
+# Serveur web de développement
+php -S localhost:8000
+```
+
+Ouvrir ensuite `http://localhost:8000/auth.php`.
+
+Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP. Pour repartir de zéro, supprimer la base (`mysql -u root -e "DROP DATABASE cinema"`) puis réexécuter ces commandes.
 
 ## Combat
 
@@ -43,33 +75,50 @@ Le moteur `includes/combat.php` applique les règles de `regle.txt` : énergie c
 
 Les tests utilisent PHPUnit et une base dédiée `cinema_test`, reconstruite automatiquement à chaque exécution : la base `cinema` de l'application n'est jamais touchée.
 
+Prérequis communs : PHP 8.2 ou plus récent avec les extensions `pdo_mysql`, Composer, et un serveur MySQL démarré sur `localhost:3306`.
+
 ### Sur Windows (WAMP)
 
-```bash
-composer install       # une seule fois ; composer s'installe depuis https://getcomposer.org
-vendor/bin/phpunit     # toutes les suites ; sous CMD/PowerShell : php vendor\phpunit\phpunit\phpunit
+Dans un terminal ouvert à la racine du dépôt (`C:\wamp64\www\projet-fil-rouge`) :
+
+```powershell
+composer install                          # une seule fois ; Composer : https://getcomposer.org
+php vendor\phpunit\phpunit\phpunit        # toutes les suites
+php vendor\phpunit\phpunit\phpunit --testsuite unit
 ```
+
+Si la base de test n'utilise pas `root` sans mot de passe (WAMP par défaut), définir les variables avant de lancer la suite :
+
+```powershell
+$env:TEST_DB_USER = "moi"; $env:TEST_DB_PASSWORD = "secret"; php vendor\phpunit\phpunit\phpunit
+```
+
+(Sous l'invite de commandes CMD : `set TEST_DB_USER=moi` puis `set TEST_DB_PASSWORD=secret` sur deux lignes.)
 
 ### Sur macOS
 
 ```bash
 # Prérequis (une seule fois)
 brew install php composer mysql
-brew services start mysql      # MySQL doit tourner sur localhost:3306
+brew services start mysql              # MySQL doit tourner sur localhost:3306
 
-# Dépendances des tests (une seule fois)
+# Dépendances des tests (une seule fois), depuis la racine du projet
 composer install
 
-# Exécution, depuis la racine du projet
-vendor/bin/phpunit             # toutes les suites
-vendor/bin/phpunit --testsuite unit   # suite rapide de fumée
+# Exécution
+vendor/bin/phpunit                     # toutes les suites
+vendor/bin/phpunit --testsuite unit    # suite rapide de fumée
 ```
 
-Si MySQL local utilise un autre port ou des identifiants différents de `root` sans mot de passe :
+Si MySQL local utilise un autre port ou d'autres identifiants :
 
 ```bash
 TEST_DB_PORT=8889 TEST_DB_USER=moi TEST_DB_PASSWORD='secret' vendor/bin/phpunit
 ```
+
+### Résultat attendu
+
+Une ligne `OK (N tests, M assertions)` en fin d'exécution. La suite reconstruit `cinema_test` à chaque lancement, sans toucher à `cinema`.
 
 Les détails (overrides d'identifiants, organisation des suites) sont dans [tests/README.md](tests/README.md).
 
@@ -103,6 +152,8 @@ projet-fil-rouge/
 |-- tests/
 |-- combat.php
 |-- auth.php
+|-- deck-api.php
+|-- open-pack.php
 |-- composer.json
 |-- config.php
 |-- phpunit.xml
