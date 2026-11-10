@@ -3,74 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/layout.php';
-require_once __DIR__ . '/../includes/rate_limit.php';
 
 require_login('../');
-
-function respond_json(bool $success, string $message, ?string $username = null): never
-{
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'success' => $success,
-        'message' => $message,
-        'username' => $username,
-    ], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $token = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-
-    if (!hash_equals(ensure_csrf_token(), $token)) {
-        http_response_code(403);
-        respond_json(false, 'Session expirée. Rechargez la page.');
-    }
-
-    $retry = rate_limit_api('settings', (string) $_SESSION['user_id'], 30);
-    if ($retry > 0) {
-        header('Retry-After: ' . $retry);
-        http_response_code(429);
-        respond_json(false, 'Trop de requêtes. Patientez un instant.');
-    }
-
-    $rawBody = app_read_body();
-    if ($rawBody === null) {
-        http_response_code(413);
-        respond_json(false, 'Requête trop volumineuse.');
-    }
-    $payload = json_decode($rawBody, true);
-    $action = is_array($payload) ? ($payload['action'] ?? '') : '';
-
-    if ($action === 'update_username') {
-        $username = trim((string) ($payload['username'] ?? ''));
-
-        if (!preg_match('/^[\p{L}0-9_.-]{3,50}$/u', $username)) {
-            respond_json(false, 'Choisissez un pseudo de 3 à 50 caractères, sans espace.');
-        }
-
-        try {
-            $db = database();
-            $check = $db->prepare('SELECT id FROM users WHERE username = :username AND id <> :id LIMIT 1');
-            $check->execute(['username' => $username, 'id' => $_SESSION['user_id']]);
-
-            if ($check->fetch()) {
-                respond_json(false, 'Ce pseudo est déjà utilisé.');
-            }
-
-            $update = $db->prepare('UPDATE users SET username = :username WHERE id = :id');
-            $update->execute(['username' => $username, 'id' => $_SESSION['user_id']]);
-        } catch (Throwable $error) {
-            app_log_exception($error, 'Enregistrement du pseudo impossible (joueur ' . (int) $_SESSION['user_id'] . ')');
-
-            respond_json(false, app_error_message($error));
-        }
-
-        $_SESSION['username'] = $username;
-        respond_json(true, 'Pseudo mis à jour.', $username);
-    }
-
-    respond_json(false, 'Action inconnue.');
-}
 
 $user = current_user('../');
 

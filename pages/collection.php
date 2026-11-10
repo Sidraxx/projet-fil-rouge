@@ -6,6 +6,64 @@ require_once __DIR__ . '/../includes/layout.php';
 
 require_login('../');
 
+function collection_json(int $status, bool $success, string $message, ?bool $favorite = null): never
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => $success,
+        'message' => $message,
+        'favorite' => $favorite,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!hash_equals(ensure_csrf_token(), $token)) {
+        collection_json(403, false, 'Session expirée. Rechargez la page.');
+    }
+
+    $payload = json_decode((string) file_get_contents('php://input'), true);
+    if (!is_array($payload) || ($payload['action'] ?? '') !== 'set_favorite') {
+        collection_json(400, false, 'Action inconnue.');
+    }
+
+    $movieId = filter_var($payload['movie_id'] ?? null, FILTER_VALIDATE_INT);
+    $favorite = $payload['favorite'] ?? null;
+    if ($movieId === false || $movieId <= 0 || !is_bool($favorite)) {
+        collection_json(400, false, 'Données de favori invalides.');
+    }
+
+    $db = database();
+    $userId = (int) $_SESSION['user_id'];
+    $owned = $db->prepare(
+        'SELECT 1 FROM user_cards
+         WHERE user_id = :user_id AND movie_id = :movie_id
+         LIMIT 1'
+    );
+    $owned->execute(['user_id' => $userId, 'movie_id' => $movieId]);
+    if (!$owned->fetchColumn()) {
+        collection_json(404, false, 'Cette carte ne fait pas partie de votre collection.');
+    }
+
+    if ($favorite) {
+        $statement = $db->prepare(
+            'INSERT INTO user_favorites (user_id, movie_id)
+             VALUES (:user_id, :movie_id)
+             ON DUPLICATE KEY UPDATE movie_id = VALUES(movie_id)'
+        );
+    } else {
+        $statement = $db->prepare(
+            'DELETE FROM user_favorites
+             WHERE user_id = :user_id AND movie_id = :movie_id'
+        );
+    }
+
+    $statement->execute(['user_id' => $userId, 'movie_id' => $movieId]);
+    collection_json(200, true, $favorite ? 'Carte ajoutée aux favoris.' : 'Carte retirée des favoris.', $favorite);
+}
+
 $collectionStatement = database()->prepare(
     'SELECT
         m.id,
@@ -88,6 +146,7 @@ render_start('Collection', 'collection', '../');
             <button type="button" data-rarity-filter="<?= e($rarity) ?>" data-active="false" class="rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-stone-400 transition hover:border-white/20 hover:text-white data-[active=true]:border-mint/50 data-[active=true]:bg-mint/10 data-[active=true]:text-mint"><?= e($rarity) ?></button>
           <?php endforeach; ?>
         </div>
+        <p id="collection-message" class="min-h-5 text-sm text-stone-500" role="status" aria-live="polite"></p>
       </section>
 
       <section id="collection-grid" class="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" aria-live="polite">
@@ -120,6 +179,7 @@ render_start('Collection', 'collection', '../');
           ?>
           <article
             data-card
+            data-movie-id="<?= (int) $movie['id'] ?>"
             data-movie-details="<?= e($movieDetails ?: '{}') ?>"
             data-title="<?= e($movie['title']) ?>"
             data-search="<?= e($movie['title'] . ' ' . $movie['genre']) ?>"
@@ -220,4 +280,5 @@ render_start('Collection', 'collection', '../');
     </div>
   </dialog>
 <?php
-render_end('../', ['assets/js/collection.js']);
+$collectionScriptVersion = (string) filemtime(__DIR__ . '/../assets/js/collection.js');
+render_end('../', ['assets/js/collection.js?v=' . $collectionScriptVersion]);

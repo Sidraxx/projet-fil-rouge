@@ -8,7 +8,12 @@ CREATE DATABASE IF NOT EXISTS cinema
 
 USE cinema;
 
+DROP TABLE IF EXISTS deck_cards;
+DROP TABLE IF EXISTS user_decks;
+DROP TABLE IF EXISTS user_pack_state;
+DROP TABLE IF EXISTS user_cards;
 DROP TABLE IF EXISTS user_favorites;
+DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS movies;
 
@@ -51,6 +56,74 @@ CREATE TABLE users (
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_username (username),
     UNIQUE KEY uq_users_email (email)
+) ENGINE=InnoDB;
+
+CREATE TABLE login_attempts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    email VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    attempted_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    INDEX idx_login_attempts_email_time (email, attempted_at),
+    INDEX idx_login_attempts_ip_time (ip_address, attempted_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE user_cards (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    movie_id INT UNSIGNED NOT NULL,
+    quantity INT UNSIGNED NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_user_cards_user_movie (user_id, movie_id),
+    CONSTRAINT fk_user_cards_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_user_cards_movie
+        FOREIGN KEY (movie_id) REFERENCES movies(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE user_pack_state (
+    user_id INT UNSIGNED NOT NULL,
+    packs_available TINYINT UNSIGNED NOT NULL DEFAULT 10,
+    last_refill_ts BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_pack_state_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE user_decks (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    name VARCHAR(60) NOT NULL DEFAULT 'Mon deck',
+    is_active TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_user_decks_user (user_id),
+    CONSTRAINT fk_user_decks_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE deck_cards (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    deck_id INT UNSIGNED NOT NULL,
+    movie_id INT UNSIGNED NOT NULL,
+    quantity INT UNSIGNED NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_deck_cards_deck_movie (deck_id, movie_id),
+    CONSTRAINT fk_deck_cards_deck
+        FOREIGN KEY (deck_id) REFERENCES user_decks(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_deck_cards_movie
+        FOREIGN KEY (movie_id) REFERENCES movies(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE user_favorites (

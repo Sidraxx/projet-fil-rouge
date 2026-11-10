@@ -6,7 +6,7 @@ Le projet est réalisé par Hugo, Antonio et Siloe dans le cadre de leur formati
 
 ## État actuel
 
-L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés, l'ouverture de paquets, la collection et le constructeur de deck (plusieurs decks nommés par joueur, 10 cartes et 2 exemplaires maximum par carte, un seul deck actif au combat) sont en place. Les combats restent à développer.
+L'authentification, la base initiale de 1 000 films, le nettoyage des données, le calcul des raretés, l'ouverture de paquets, la collection, le constructeur de deck et le combat contre le système sont en place.
 
 ## Stack
 
@@ -20,7 +20,7 @@ Aucun framework n'est utilisé.
 
 ## Base de données SQL du projet
 
-La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutable sans erreur) :
+La base s'appelle `cinema`. La connexion se configure avec les variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD`, ou dans un fichier local copié depuis `includes/database.local.php.example` vers `includes/database.local.php`. Le dump principal crée aussi les tables nécessaires aux comptes, à la vitrine, aux paquets et aux decks. Les scripts complémentaires s'exécutent **dans cet ordre** après l'import du dump, tous idempotents (réexécutables sans erreur) :
 
 | # | Script | Rôle |
 |---|--------|------|
@@ -36,11 +36,11 @@ La base s'appelle `cinema` (déclarée dans `config.php`). Cinq scripts s'exécu
 1. Placer le dépôt dans `C:\wamp64\www`.
 2. Démarrer Apache et MySQL dans WAMP.
 3. Ouvrir phpMyAdmin et importer `cinema_mysql.sql` (bouton *Import*).
-4. Exécuter dans l'onglet *SQL* de la base `cinema`, un par un, les cinq scripts de la table ci-dessus, depuis `clean_movies.sql` jusqu'à `user_decks.sql`.
+4. Exécuter dans l'onglet *SQL* de la base `cinema`, un par un, les scripts de données de la table ci-dessus, depuis `clean_movies.sql` jusqu'à `rarity.sql`, puis les scripts de migration `user_cards.sql`, `user_pack_state.sql` et `user_decks.sql` si la base vient d'une ancienne version.
 5. Vérifier que les colonnes `validation_donnees` (fin de `clean_movies.sql`) et `validation_rarete` (fin de `rarity.sql`) valent `OK` dans les résultats affichés.
 6. Ouvrir `http://localhost/projet-fil-rouge/auth.php`.
 
-Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs sont définies dans `config.php` pour le développement local.
+Avec la configuration WAMP par défaut, l'utilisateur est `root` sans mot de passe. Ces valeurs peuvent être placées dans le fichier local ignoré ou définies dans l'environnement.
 
 Pour afficher les détails techniques (console du navigateur, page d'erreur avec le fichier et la ligne), définir la variable d'environnement `APP_DEBUG=1` : décommenter `SetEnv APP_DEBUG 1` dans `.htaccess` ou la définir dans l'environnement de WAMP. Sans cette variable, les visiteurs ne voient que des messages génériques ; les logs PHP restent complets.
 
@@ -70,6 +70,12 @@ php -S localhost:8000
 Ouvrir ensuite `http://localhost:8000/auth.php`.
 
 Le formulaire d'inscription crée un utilisateur avec un mot de passe haché. La connexion ouvre ensuite une session PHP. Pour repartir de zéro, supprimer la base (`mysql -u root -e "DROP DATABASE cinema"`) puis réexécuter ces commandes.
+
+## Combat
+
+La page `pages/combat.php` permet de sélectionner quatre cartes possédées et de lancer un combat contre une équipe générée par le système. L'état du combat est conservé dans la session PHP pendant la partie.
+
+Le moteur `includes/combat.php` applique les règles de `regle.txt` : énergie commune de 5 points au départ, récupération passive de 3 points au début de chaque tour avec un maximum de 12, concentration (+2 énergie une fois par tour), attaques de toutes les cartes vivantes, sélection explicite des cibles, profils des 16 genres avec résistances et faiblesses, bonus de genre de +/- 25 %, passifs, soins plafonnés, poison, boucliers, affaiblissements et victoire après élimination des quatre cartes adverses.
 
 ## Erreurs et diagnostics
 
@@ -168,8 +174,10 @@ projet-fil-rouge/
 |-- database/
 |-- documents/
 |-- includes/
+|   |-- combat.php
 |-- pages/
 |-- tests/
+|-- combat.php
 |-- auth.php
 |-- deck-api.php
 |-- open-pack.php

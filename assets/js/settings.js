@@ -39,7 +39,7 @@ accountForm.addEventListener('submit', async (event) => {
   setMessage('Enregistrement...', 'info');
 
   try {
-    const response = await fetch('settings.php', {
+    const response = await fetch('../settings-api.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
       body: JSON.stringify({ action: 'update_username', username: usernameInput.value.trim() }),
