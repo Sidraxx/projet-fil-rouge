@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/json.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
 if (!isset($_SESSION['user_id'])) {
     json_response(['success' => false, 'message' => 'Connexion requise.'], 401);
@@ -18,7 +19,17 @@ if (!hash_equals(ensure_csrf_token(), $token)) {
     json_response(['success' => false, 'message' => 'Session expirée. Rechargez la page.'], 403);
 }
 
-$payload = json_decode((string) file_get_contents('php://input'), true);
+$retry = rate_limit_api('settings', (string) $_SESSION['user_id'], 60);
+if ($retry > 0) {
+    header('Retry-After: ' . $retry);
+    json_response(['success' => false, 'message' => 'Trop de requêtes. Patientez un instant.'], 429);
+}
+
+$rawBody = app_read_body();
+if ($rawBody === null) {
+    json_response(['success' => false, 'message' => 'Requête trop volumineuse.'], 413);
+}
+$payload = json_decode($rawBody, true);
 $action = is_array($payload) ? (string) ($payload['action'] ?? '') : '';
 
 if ($action !== 'update_username') {

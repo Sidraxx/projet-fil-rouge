@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/includes/errors.php';
+require_once __DIR__ . '/includes/security.php';
 
 $localConfigFile = __DIR__ . '/includes/database.local.php';
 $localConfig = is_file($localConfigFile) ? require $localConfigFile : [];
@@ -57,4 +58,9 @@ function database(): PDO
     app_log('info', 'Connexion MySQL établie.');
 
     return $connection;
+}
+
+if (PHP_SAPI !== 'cli') {
+    app_configure_session();
+    app_send_security_headers();
 }

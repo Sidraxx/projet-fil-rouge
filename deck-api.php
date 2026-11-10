@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/decks.php';
 require_once __DIR__ . '/includes/json.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
 if (!isset($_SESSION['user_id'])) {
     json_response(['success' => false, 'message' => 'Connexion requise.'], 401);
@@ -22,7 +23,17 @@ if (!hash_equals(ensure_csrf_token(), $token)) {
 $db = database();
 $userId = (int) $_SESSION['user_id'];
 
-$data = json_decode((string) file_get_contents('php://input'), true) ?: [];
+$retry = rate_limit_api('deck-api', (string) $userId, 120);
+if ($retry > 0) {
+    header('Retry-After: ' . $retry);
+    json_response(['success' => false, 'message' => 'Trop de requêtes. Patientez un instant.'], 429);
+}
+
+$rawBody = app_read_body();
+if ($rawBody === null) {
+    json_response(['success' => false, 'message' => 'Requête trop volumineuse.'], 413);
+}
+$data = json_decode($rawBody, true) ?: [];
 $movieId = (int) ($data['movieId'] ?? 0);
 $deckId = (int) ($data['deckId'] ?? 0);
 $name = (string) ($data['name'] ?? '');

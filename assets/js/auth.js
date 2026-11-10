@@ -54,7 +54,10 @@ forms.forEach((form) => {
     try {
       const response = await fetch('auth.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content,
+        },
         body: JSON.stringify({ action: form.dataset.action, ...data }),
       });
       const result = await response.json();

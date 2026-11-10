@@ -8,6 +8,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+const APP_MAX_BODY_BYTES = 16384;
+
+/** Corps brut d'une requête JSON, ou null s'il dépasse APP_MAX_BODY_BYTES. */
+function app_read_body(): ?string
+{
+    $body = file_get_contents('php://input', false, null, 0, APP_MAX_BODY_BYTES + 1);
+
+    if ($body === false) {
+        return '';
+    }
+
+    return strlen($body) > APP_MAX_BODY_BYTES ? null : $body;
+}
+
 function e(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

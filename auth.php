@@ -2,29 +2,23 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/bootstrap.php';
 require_once __DIR__ . '/includes/json.php';
+require_once __DIR__ . '/includes/rate_limit.php';
 
-session_start();
+const LOGIN_MAX_ATTEMPTS_PER_ACCOUNT = 5;
+const LOGIN_MAX_ATTEMPTS_PER_IP = 20;
+const LOGIN_WINDOW_SECONDS = 900;
+const REGISTER_MAX_ATTEMPTS = 5;
+const REGISTER_WINDOW_SECONDS = 3600;
+const DATABASE_UNAVAILABLE_MESSAGE = 'Connexion indisponible pour le moment. Réessayez plus tard.';
 
-function ensureLoginAttemptsTable(PDO $db): void
+function respond_rate_limited(int $seconds): never
 {
-    $db->exec(
-        'CREATE TABLE IF NOT EXISTS login_attempts (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            email VARCHAR(255) NOT NULL,
-            ip_address VARCHAR(45) NOT NULL,
-            attempted_at DATETIME NOT NULL,
-            PRIMARY KEY (id),
-            INDEX idx_login_attempts_email_time (email, attempted_at),
-            INDEX idx_login_attempts_ip_time (ip_address, attempted_at)
-        ) ENGINE=InnoDB'
-    );
-}
+    header('Retry-After: ' . $seconds);
+    $minutes = (int) ceil($seconds / 60);
 
-function clientIpAddress(): string
-{
-    return substr((string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), 0, 45);
+    json_response(['success' => false, 'message' => 'Trop de tentatives. Réessayez dans ' . $minutes . ' minute' . ($minutes > 1 ? 's' : '') . '.'], 429);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($_GET['action'] ?? '') === 'session') {
@@ -69,13 +63,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'logou
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $payload = json_decode(file_get_contents('php://input'), true);
+    $rawBody = app_read_body();
+    if ($rawBody === null) {
+        json_response(['success' => false, 'message' => 'Requête trop volumineuse.'], 413);
+    }
+    $payload = json_decode($rawBody, true);
     $action = is_array($payload) ? ($payload['action'] ?? '') : '';
+
+    $csrfToken = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!hash_equals(ensure_csrf_token(), $csrfToken)) {
+        json_response(['success' => false, 'message' => 'Session expirée. Rechargez la page.'], 403);
+    }
 
     try {
         $db = database();
 
         if ($action === 'register') {
+            $ip = client_ip();
+            $retry = rate_limit_retry_after('register-ip', $ip, REGISTER_MAX_ATTEMPTS, REGISTER_WINDOW_SECONDS);
+            if ($retry > 0) {
+                app_log('warning', 'Inscription refusée : limite de tentatives atteinte.');
+                respond_rate_limited($retry);
+            }
+            rate_limit_hit('register-ip', $ip, REGISTER_WINDOW_SECONDS);
+
             $username = trim((string) ($payload['username'] ?? ''));
             $email = strtolower(trim((string) ($payload['email'] ?? '')));
             $password = (string) ($payload['password'] ?? '');
@@ -89,6 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (strlen($password) < 8) {
                 json_response(['success' => false, 'message' => 'Le mot de passe doit contenir au moins 8 caractères.'], 400);
+            }
+            // bcrypt ignore tout au-delà de 72 octets : on refuse plutôt que de tronquer en silence.
+            if (strlen($password) > 72) {
+                json_response(['success' => false, 'message' => 'Le mot de passe ne doit pas dépasser 72 caractères.'], 400);
             }
             if ($password !== $confirmation) {
                 json_response(['success' => false, 'message' => 'Les mots de passe ne correspondent pas.'], 400);
@@ -107,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
             session_regenerate_id(true);
+            unset($_SESSION['csrf_token']);
             $_SESSION['user_id'] = (int) $db->lastInsertId();
             $_SESSION['username'] = $username;
             json_response(['success' => true, 'message' => 'Votre collection est prête. Bienvenue dans Absolute Cinema.', 'redirect' => 'index.php']);
@@ -115,48 +131,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'login') {
             $email = strtolower(trim((string) ($payload['email'] ?? '')));
             $password = (string) ($payload['password'] ?? '');
-            $ipAddress = clientIpAddress();
-            $maxLoginAttempts = 5;
+            $ip = client_ip();
 
-            ensureLoginAttemptsTable($db);
-            $attempts = $db->prepare(
-                'SELECT COUNT(*) FROM login_attempts
-                 WHERE attempted_at >= (NOW() - INTERVAL 15 MINUTE)
-                 AND (email = :email OR ip_address = :ip_address)'
+            $retry = max(
+                rate_limit_retry_after('login-account', $email, LOGIN_MAX_ATTEMPTS_PER_ACCOUNT, LOGIN_WINDOW_SECONDS),
+                rate_limit_retry_after('login-ip', $ip, LOGIN_MAX_ATTEMPTS_PER_IP, LOGIN_WINDOW_SECONDS)
             );
-            $attempts->execute([
-                'email' => $email,
-                'ip_address' => $ipAddress,
-            ]);
-
-            if ((int) $attempts->fetchColumn() >= $maxLoginAttempts) {
-                json_response(['success' => false, 'message' => 'Trop de tentatives de connexion. Réessayez dans 15 minutes.'], 429);
+            if ($retry > 0) {
+                app_log('warning', 'Connexion refusée : limite de tentatives atteinte.');
+                respond_rate_limited($retry);
             }
 
             $statement = $db->prepare('SELECT id, username, password_hash FROM users WHERE email = :email LIMIT 1');
             $statement->execute(['email' => $email]);
             $user = $statement->fetch();
 
-            if (!$user || !password_verify($password, $user['password_hash'])) {
-                $failedAttempt = $db->prepare(
-                    'INSERT INTO login_attempts (email, ip_address, attempted_at)
-                     VALUES (:email, :ip_address, NOW())'
-                );
-                $failedAttempt->execute([
-                    'email' => $email,
-                    'ip_address' => $ipAddress,
-                ]);
+            // Un hachage est vérifié même si le compte n'existe pas : le temps de réponse
+            // ne révèle donc pas si l'adresse e-mail est inscrite.
+            $hash = $user ? $user['password_hash'] : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+            $passwordValid = password_verify($password, $hash);
+
+            if (!$user || !$passwordValid) {
+                rate_limit_hit('login-account', $email, LOGIN_WINDOW_SECONDS);
+                rate_limit_hit('login-ip', $ip, LOGIN_WINDOW_SECONDS);
                 json_response(['success' => false, 'message' => 'E-mail ou mot de passe incorrect.'], 400);
             }
 
-            $clearAttempts = $db->prepare(
-                'DELETE FROM login_attempts WHERE email = :email AND ip_address = :ip_address'
-            );
-            $clearAttempts->execute([
-                'email' => $email,
-                'ip_address' => $ipAddress,
-            ]);
+            rate_limit_clear('login-account', $email);
             session_regenerate_id(true);
+            unset($_SESSION['csrf_token']);
             $_SESSION['user_id'] = (int) $user['id'];
             $_SESSION['username'] = $user['username'];
             json_response(['success' => true, 'message' => 'Connexion réussie. Votre prochaine carte vous attend.', 'redirect' => 'index.php']);
@@ -166,10 +169,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         json_response(['success' => false, 'message' => 'Action inconnue.'], 400);
     } catch (PDOException $exception) {
         app_log_exception($exception, 'Authentification impossible');
-        json_response(['success' => false, 'message' => 'Connexion impossible : ' . describe_database_error($exception)], 500);
+        json_response(['success' => false, 'message' => app_debug_enabled()
+            ? 'Connexion à la base « ' . DB_NAME . ' » impossible : ' . describe_database_error($exception)
+            : DATABASE_UNAVAILABLE_MESSAGE], 500);
     } catch (AppDatabaseException $exception) {
         // Message déjà traduit par config.php / app_database_exception().
-        json_response(['success' => false, 'message' => $exception->getMessage()], 500);
+        json_response(['success' => false, 'message' => app_debug_enabled() ? $exception->getMessage() : DATABASE_UNAVAILABLE_MESSAGE], 500);
     } catch (Throwable $exception) {
         app_log_exception($exception, 'Authentification impossible');
         json_response(['success' => false, 'message' => 'Impossible de finaliser la connexion : une erreur interne est survenue.'], 500);
@@ -181,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="<?= e(ensure_csrf_token()) ?>">
   <meta name="description" content="Rejoignez Absolute Cinema, le TCG de cartes de films.">
   <title>Absolute Cinema | TCG de cartes de films</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">

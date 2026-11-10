@@ -48,7 +48,7 @@ render_start('Ouvrir un paquet', 'packs');
 <?php if ($packError !== null): ?>
     <p class="mt-6 w-full max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-center text-sm text-amber-200" role="alert">
       Les paquets sont momentanément indisponibles : <?= e($packError) ?><br>
-      <span class="font-mono text-[11px] uppercase tracking-wider text-amber-200/50">Détails techniques : console du navigateur (F12) et logs PHP</span>
+      <span class="font-mono text-[11px] uppercase tracking-wider text-amber-200/50"><?= app_debug_enabled() ? 'Détails techniques : console du navigateur (F12) et logs PHP' : 'Détails techniques : logs PHP du serveur' ?></span>
     </p>
 <?php endif; ?>
 
