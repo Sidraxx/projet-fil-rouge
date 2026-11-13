@@ -45,6 +45,7 @@ function render_start(string $title, string $active, string $root = ''): void
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<?= $csrf ?>">
 <?= app_console_script() ?>
+  <script>document.documentElement.dataset.theme = localStorage.getItem('ac-theme') || 'dark';</script>
   <title><?= e($title) ?> | Absolute Cinema</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +54,7 @@ function render_start(string $title, string $active, string $root = ''): void
   <link rel="stylesheet" href="<?= e($root) ?>assets/css/combat.css">
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e($root) ?>assets/css/app.css">
+  <link rel="stylesheet" href="<?= e($root) ?>assets/css/theme.css">
 </head>
 <body class="min-h-screen bg-ink font-sans text-stone-100">
   <div class="flex min-h-screen">

@@ -1,5 +1,7 @@
-const SOUND_KEY = 'ac-sound';
-const soundToggle = document.querySelector('#sound-toggle');
+const THEME_KEY = 'ac-theme';
+const themeToggle = document.querySelector('#theme-toggle');
+const themeLabel = document.querySelector('#theme-label');
+const themeDescription = document.querySelector('#theme-description');
 const accountForm = document.querySelector('#account-form');
 const usernameInput = document.querySelector('#account-username');
 const accountMessage = document.querySelector('#account-message');
@@ -14,12 +16,22 @@ function renderSwitch(toggle, checked) {
   toggle.firstElementChild.classList.toggle('translate-x-0.5', !checked);
 }
 
-renderSwitch(soundToggle, localStorage.getItem(SOUND_KEY) !== 'off');
+function renderTheme(isLight) {
+  document.documentElement.dataset.theme = isLight ? 'light' : 'dark';
+  themeToggle.setAttribute('aria-checked', String(isLight));
+  renderSwitch(themeToggle, isLight);
+  themeLabel.textContent = isLight ? 'Mode clair' : 'Mode sombre';
+  themeDescription.textContent = isLight
+    ? 'Utiliser un fond sombre pour l\'interface'
+    : 'Utiliser un fond clair pour l\'interface';
+}
 
-soundToggle.addEventListener('click', () => {
-  const next = soundToggle.getAttribute('aria-checked') !== 'true';
-  localStorage.setItem(SOUND_KEY, next ? 'on' : 'off');
-  renderSwitch(soundToggle, next);
+renderTheme(localStorage.getItem(THEME_KEY) === 'light');
+
+themeToggle.addEventListener('click', () => {
+  const next = themeToggle.getAttribute('aria-checked') !== 'true';
+  localStorage.setItem(THEME_KEY, next ? 'light' : 'dark');
+  renderTheme(next);
 });
 
 function setMessage(text, type) {
@@ -41,6 +53,7 @@ accountForm.addEventListener('submit', async (event) => {
   try {
     const response = await fetch('../settings-api.php', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
       body: JSON.stringify({ action: 'update_username', username: usernameInput.value.trim() }),
     });
@@ -56,5 +69,57 @@ accountForm.addEventListener('submit', async (event) => {
     setMessage('Le serveur est indisponible. Vérifiez que WAMP est démarré.', 'error');
   } finally {
     submitButton.disabled = false;
+  }
+});
+
+const deleteDialog = document.querySelector('#delete-account-dialog');
+const deleteForm = document.querySelector('#delete-account-form');
+const deleteConfirmation = document.querySelector('#delete-account-confirmation');
+const deleteMessage = document.querySelector('#delete-account-message');
+const deleteSubmit = document.querySelector('#delete-account-submit');
+
+document.querySelector('#delete-account-open').addEventListener('click', () => {
+  deleteForm.reset();
+  deleteMessage.textContent = '';
+  deleteDialog.showModal();
+  deleteConfirmation.focus();
+});
+
+document.querySelector('#delete-account-cancel').addEventListener('click', () => deleteDialog.close());
+
+deleteDialog.addEventListener('click', (event) => {
+  if (event.target === deleteDialog) deleteDialog.close();
+});
+
+deleteForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (deleteConfirmation.value.trim() !== 'SUPPRIMER') {
+    deleteMessage.textContent = 'Saisissez SUPPRIMER pour confirmer.';
+    return;
+  }
+
+  deleteSubmit.disabled = true;
+  deleteMessage.textContent = 'Suppression en cours...';
+
+  try {
+    const response = await fetch('../settings-api.php', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ action: 'delete_account', confirmation: 'SUPPRIMER' }),
+    });
+    const result = await response.json();
+
+    if (!result.success) {
+      deleteMessage.textContent = result.message || 'Impossible de supprimer le compte.';
+      return;
+    }
+
+    window.location.assign(result.redirect || '../auth.php');
+  } catch (error) {
+    deleteMessage.textContent = 'Le serveur est indisponible. Vérifiez que WAMP est démarré.';
+  } finally {
+    deleteSubmit.disabled = false;
   }
 });
