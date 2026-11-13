@@ -228,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
     </section>
   </main>
-  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/auth.js?v=2"></script>
 <?= app_console_script() ?>
 </body>
 </html>
