@@ -69,7 +69,7 @@ render_start('Combat', 'battle', '../');
               >
                 <div class="relative aspect-[2/3] overflow-hidden bg-stone-900">
                   <?php if ($card['poster']): ?>
-                    <img src="<?= e($card['poster']) ?>" alt="Affiche de <?= e($card['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+                    <img data-poster-fallback src="<?= e($card['poster']) ?>" alt="Affiche de <?= e($card['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
                   <?php else: ?>
                     <div class="grid h-full place-items-center text-3xl font-semibold text-mint"><?= e(mb_strtoupper(mb_substr($card['title'], 0, 2))) ?></div>
                   <?php endif; ?>
@@ -97,7 +97,7 @@ render_start('Combat', 'battle', '../');
               <?php foreach ($enemyPreview as $card): ?>
                 <div class="combat-opponent-card">
                   <?php if ($card['poster']): ?>
-                    <img src="<?= e($card['poster']) ?>" alt="" loading="lazy">
+                    <img data-poster-fallback src="<?= e($card['poster']) ?>" alt="" loading="lazy">
                   <?php else: ?>
                     <span><?= e(mb_strtoupper(mb_substr($card['title'], 0, 2))) ?></span>
                   <?php endif; ?>

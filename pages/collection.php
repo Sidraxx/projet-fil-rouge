@@ -191,7 +191,7 @@ render_start('Collection', 'collection', '../');
             class="group relative overflow-hidden rounded-2xl border bg-[#111312] outline-none transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-mint/70 data-[selected=true]:border-mint data-[selected=true]:ring-2 data-[selected=true]:ring-mint/30 <?= $style['frame'] ?>"
           >
             <div class="relative aspect-[2/3] overflow-hidden bg-stone-900">
-              <img src="<?= e($poster) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+              <img data-poster-fallback src="<?= e($poster) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
               <div class="absolute left-2 top-2 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur <?= $style['badge'] ?>"><?= e($movie['rarity']) ?></div>
               <?php if ($movie['quantity'] > 1): ?>
                 <div class="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">x<?= $movie['quantity'] ?></div>
@@ -228,7 +228,7 @@ render_start('Collection', 'collection', '../');
 
       <div class="grid md:grid-cols-[19rem_minmax(0,1fr)]">
         <div class="relative min-h-72 overflow-hidden bg-stone-900 md:min-h-full">
-          <img id="movie-dialog-poster" src="" alt="" class="absolute inset-0 h-full w-full object-cover">
+          <img id="movie-dialog-poster" data-poster-fallback src="" alt="" class="absolute inset-0 h-full w-full object-cover">
           <div class="absolute inset-0 bg-gradient-to-t from-[#101211] via-transparent to-black/20 md:bg-gradient-to-r md:from-transparent md:to-[#101211]/35"></div>
           <div id="movie-dialog-rarity" class="absolute left-5 top-5 rounded-full border border-white/20 bg-black/65 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur"></div>
         </div>

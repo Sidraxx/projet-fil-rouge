@@ -102,7 +102,7 @@ render_start('Profil', 'profile', '../');
               <?php $border = $rarityBorders[$showcaseCard['rarity']] ?? 'border-white/15'; ?>
               <div class="group relative aspect-[2/3] overflow-hidden rounded-xl border bg-stone-900 <?= $border ?>">
                 <button type="button" data-showcase-slot="<?= $slot ?>" class="absolute inset-0 z-10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-mint" aria-label="Modifier l'emplacement <?= $slot ?>, actuellement <?= e($showcaseCard['title']) ?>"></button>
-                <img src="<?= e($showcaseCard['poster']) ?>" alt="Affiche du film <?= e($showcaseCard['title']) ?>" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
+                <img data-poster-fallback src="<?= e($showcaseCard['poster']) ?>" alt="Affiche du film <?= e($showcaseCard['title']) ?>" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
                 <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/85 to-transparent px-3 pb-3 pt-12">
                   <p class="truncate text-xs font-semibold text-white"><?= e($showcaseCard['title']) ?></p>
                   <p class="mt-1 text-[10px] text-stone-400"><?= e($showcaseCard['rarity']) ?> · x<?= (int) $showcaseCard['quantity'] ?></p>
@@ -150,7 +150,7 @@ render_start('Profil', 'profile', '../');
               <?php $border = $rarityBorders[$card['rarity']] ?? 'border-white/15'; ?>
               <button type="button" data-showcase-choice="<?= (int) $card['id'] ?>" class="group overflow-hidden rounded-xl border bg-[#0d0f0e] text-left transition hover:-translate-y-0.5 hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint <?= $border ?>">
                 <div class="aspect-[2/3] overflow-hidden bg-stone-900">
-                  <img src="<?= e($card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
+                  <img data-poster-fallback src="<?= e($card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
                 </div>
                 <div class="p-3">
                   <p class="truncate text-xs font-semibold text-white"><?= e($card['title']) ?></p>

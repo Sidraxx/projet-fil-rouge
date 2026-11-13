@@ -215,7 +215,7 @@ render_start('Toutes les cartes', 'catalog', '../');
               class="group relative cursor-pointer overflow-hidden rounded-2xl border bg-[#111312] outline-none transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-mint/70 <?= $style['frame'] ?>"
             >
               <div class="relative aspect-[2/3] overflow-hidden bg-stone-900">
-                <img src="<?= e($poster) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+                <img data-poster-fallback src="<?= e($poster) ?>" alt="Affiche du film <?= e($movie['title']) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
                 <div class="absolute left-2 top-2 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur <?= $style['badge'] ?>"><?= e($movie['rarity']) ?></div>
                 <?php if ((int) $movie['owned_quantity'] > 0): ?>
                   <div class="absolute bottom-2 right-2 rounded-full border border-mint/30 bg-black/80 px-2 py-1 text-[10px] font-semibold text-mint backdrop-blur">Possédée · x<?= (int) $movie['owned_quantity'] ?></div>
@@ -259,7 +259,7 @@ render_start('Toutes les cartes', 'catalog', '../');
       <button type="button" data-catalog-dialog-close aria-label="Fermer la fiche du film" class="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/60 text-xl leading-none text-stone-300 backdrop-blur transition hover:border-white/30 hover:bg-black/80 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint">&times;</button>
       <div class="grid md:grid-cols-[19rem_minmax(0,1fr)]">
         <div class="relative min-h-72 overflow-hidden bg-stone-900 md:min-h-full">
-          <img id="catalog-dialog-poster" src="" alt="" class="absolute inset-0 h-full w-full object-cover">
+          <img id="catalog-dialog-poster" data-poster-fallback src="" alt="" class="absolute inset-0 h-full w-full object-cover">
           <div class="absolute inset-0 bg-gradient-to-t from-[#101211] via-transparent to-black/20 md:bg-gradient-to-r md:from-transparent md:to-[#101211]/35"></div>
           <div id="catalog-dialog-rarity" class="absolute left-5 top-5 rounded-full border border-white/20 bg-black/65 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur"></div>
         </div>

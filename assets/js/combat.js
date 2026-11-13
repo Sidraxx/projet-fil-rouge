@@ -65,7 +65,7 @@ function renderCard(card, index, playerCard) {
   const cardClasses = getCardClasses(card, index, playerCard);
   const title = escapeHtml(card.title);
   const poster = card.poster
-    ? `<img src="${escapeHtml(card.poster)}" alt="">`
+    ? `<img data-poster-fallback src="${escapeHtml(card.poster)}" alt="">`
     : `<span>${escapeHtml(card.title.slice(0, 2).toUpperCase())}</span>`;
 
   return `

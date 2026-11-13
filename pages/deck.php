@@ -93,7 +93,7 @@ render_start('Deck', 'deck', '../');
           <?php $initial = mb_strtoupper(mb_substr((string) $deckRow['name'], 0, 1, 'UTF-8'), 'UTF-8'); ?>
           <a href="deck.php?deck=<?= $deckRow['id'] ?>" class="group relative aspect-[2/3] w-40 shrink-0 overflow-hidden rounded-2xl border bg-[#111312] transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl <?= $deckRow['is_active'] ? 'border-mint/60' : 'border-white/10' ?>">
             <?php if ($deckRow['cover'] !== ''): ?>
-              <img src="<?= e($deckRow['cover']) ?>" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-[1.03] group-hover:opacity-100">
+              <img data-poster-fallback src="<?= e($deckRow['cover']) ?>" alt="" loading="lazy" class="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-300 group-hover:scale-[1.03] group-hover:opacity-100">
             <?php else: ?>
               <span class="absolute inset-0 flex items-center justify-center text-6xl font-semibold text-white/10"><?= e($initial) ?></span>
             <?php endif; ?>
@@ -156,7 +156,7 @@ render_start('Deck', 'deck', '../');
               <li data-deck-card data-movie-id="<?= $card['id'] ?>" data-qty="<?= $card['quantity'] ?>" data-title="<?= e((string) $card['title']) ?>" data-poster="<?= e((string) $card['poster']) ?>" data-rarity="<?= e((string) $card['rarity']) ?>"
                   class="flex w-28 shrink-0 flex-col gap-2">
                 <div class="relative aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-stone-900">
-                  <img src="<?= e((string) $card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover">
+                  <img data-poster-fallback src="<?= e((string) $card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover">
                   <span class="absolute bottom-1.5 right-1.5 rounded-full border border-white/15 bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white">x<?= $card['quantity'] ?></span>
                 </div>
                 <div class="min-w-0">
@@ -191,7 +191,7 @@ render_start('Deck', 'deck', '../');
               >
                 <div class="group relative overflow-hidden rounded-2xl border bg-[#111312] transition duration-200 hover:-translate-y-1 hover:border-white/25 hover:shadow-2xl <?= $style['frame'] ?>">
                   <div class="relative aspect-[2/3] overflow-hidden bg-stone-900">
-                    <img src="<?= e((string) $card['poster']) ?>" alt="Affiche du film <?= e($title) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
+                    <img data-poster-fallback src="<?= e((string) $card['poster']) ?>" alt="Affiche du film <?= e($title) ?>" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]">
                     <div class="absolute left-2 top-2 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur <?= $style['badge'] ?>"><?= e((string) $card['rarity']) ?></div>
                     <?php if ($card['owned'] > 1): ?>
                       <div class="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/75 px-2 py-1 text-[10px] font-semibold text-white">x<?= $card['owned'] ?></div>

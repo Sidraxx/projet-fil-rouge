@@ -55,6 +55,7 @@ function render_start(string $title, string $active, string $root = ''): void
   <?php endif; ?>
   <link rel="stylesheet" href="<?= e($root) ?>assets/css/app.css">
   <link rel="stylesheet" href="<?= e($root) ?>assets/css/theme.css">
+  <link rel="stylesheet" href="<?= e($root) ?>assets/css/poster-fallback.css">
 </head>
 <body class="min-h-screen bg-ink font-sans text-stone-100">
   <div class="flex min-h-screen">

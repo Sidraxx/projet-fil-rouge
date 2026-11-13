@@ -133,6 +133,7 @@ function renderDeckList() {
     poster.alt = '';
     poster.loading = 'lazy';
     poster.className = 'h-full w-full object-cover';
+    poster.setAttribute('data-poster-fallback', '');
 
     const quantity = document.createElement('span');
     quantity.className = 'absolute bottom-1.5 right-1.5 rounded-full border border-white/15 bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white';
