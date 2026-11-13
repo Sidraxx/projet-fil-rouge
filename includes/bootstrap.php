@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/escaping.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -20,11 +21,6 @@ function app_read_body(): ?string
     }
 
     return strlen($body) > APP_MAX_BODY_BYTES ? null : $body;
-}
-
-function e(?string $value): string
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
 function movie_poster_url(?string $url): string

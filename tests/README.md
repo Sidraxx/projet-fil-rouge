@@ -50,7 +50,7 @@ Une exécution réussie affiche `OK (N tests, M assertions)`.
 |-------|---------|---------|
 | `unit` | `tests/Unit/` | environnement (version PHP, `pdo_mysql`, données de référence) |
 | `integration` | `tests/Integration/` | logique avec MySQL : `DeckTest.php` (règles du deck, ajout/retrait, limites, plusieurs decks nommés, bascule et suppression) |
-| `functional` | `tests/Functional/` | dossier réservé aux tests HTTP et parcours complet ; il ne contient pas encore de test |
+| `functional` | `tests/Functional/` | rendu réel des pages : `DisplayEscapingTest.php` vérifie, avec des caractères spéciaux, que les données dynamiques (recherche, nom de deck) sont échappées |
 
 ## Base de données de test
 
@@ -78,10 +78,11 @@ tests/
 |-- bootstrap.php                # chargé par phpunit.xml avant tout test
 |-- Support/
 |   |-- TestDatabase.php         # création de cinema_test, helpers (createUser, resetUsers)
-|   `-- IntegrationTestCase.php  # classe de base des tests avec MySQL
+|   |-- IntegrationTestCase.php  # classe de base des tests avec MySQL
+|   `-- render_page.php          # rendu d'une page dans un processus isolé (tests fonctionnels)
 |-- Unit/                        # fonctions PHP, sans effet de bord applicatif
 |-- Integration/                 # logique avec MySQL (packs, collections, decks)
-`-- Functional/                  # endpoints HTTP et parcours complet (à venir)
+`-- Functional/                  # rendu des pages et échappement des données affichées
 ```
 
 ## Dépannage

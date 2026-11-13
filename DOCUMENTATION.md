@@ -328,7 +328,7 @@ projet-fil-rouge/
 
 - Les mots de passe sont enregistrés avec `password_hash()` et vérifiés avec `password_verify()`.
 - Les requêtes contenant des données dynamiques utilisent PDO et des paramètres préparés.
-- Les données affichées dans le HTML sont échappées afin de limiter les injections de contenu.
+- Les données affichées dans le HTML sont échappées avec `e()` (`htmlspecialchars`, `ENT_QUOTES`) afin d'empêcher toute injection de contenu ; les tests fonctionnels vérifient ce comportement avec des caractères spéciaux.
 - Les formulaires sont validés côté serveur, même si une validation JavaScript existe aussi.
 - Les pages privées vérifient la présence d'une session utilisateur valide.
 - L'identifiant de session est régénéré après une connexion réussie. Les cookies de session sont `HttpOnly`, `SameSite=Lax`, `Secure` lorsque le site est servi en HTTPS, et le mode strict de session est activé.
