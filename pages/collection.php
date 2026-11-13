@@ -200,8 +200,8 @@ render_start('Collection', 'collection', '../');
             <div class="p-3 sm:p-4">
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                  <h2 class="truncate text-sm font-semibold text-stone-100" title="<?= e($movie['title']) ?>"><?= e($movie['title']) ?></h2>
-                  <p class="mt-1 truncate text-xs text-stone-500"><?= e($movie['genre']) ?> · <?= e((string) $movie['year']) ?></p>
+                  <h2 class="truncate text-sm font-semibold text-stone-100" title="<?= e(display_text($movie['title'], 'Film sans titre')) ?>"><?= e(display_text($movie['title'], 'Film sans titre')) ?></h2>
+                  <p class="mt-1 truncate text-xs text-stone-500"><?= e(movie_meta($movie['genre'], $movie['year'])) ?></p>
                 </div>
                 <button type="button" data-favorite-toggle aria-pressed="<?= $movie['favorite'] ? 'true' : 'false' ?>" class="shrink-0 rounded-full border border-white/10 px-2 py-1 text-[10px] font-medium text-stone-500 transition hover:border-white/25 hover:text-stone-200 aria-pressed:border-amber-400/40 aria-pressed:bg-amber-400/10 aria-pressed:text-amber-300">
                   <?= $movie['favorite'] ? 'Favori' : 'Ajouter' ?>

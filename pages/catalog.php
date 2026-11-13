@@ -222,10 +222,10 @@ render_start('Toutes les cartes', 'catalog', '../');
                 <?php endif; ?>
               </div>
               <div class="p-3 sm:p-4">
-                <h2 class="truncate text-sm font-semibold text-stone-100" title="<?= e($movie['title']) ?>"><?= e($movie['title']) ?></h2>
-                <p class="mt-1 truncate text-xs text-stone-500"><?= e($movie['genre']) ?> · <?= e((string) $movie['year']) ?></p>
+                <h2 class="truncate text-sm font-semibold text-stone-100" title="<?= e(display_text($movie['title'], 'Film sans titre')) ?>"><?= e(display_text($movie['title'], 'Film sans titre')) ?></h2>
+                <p class="mt-1 truncate text-xs text-stone-500"><?= e(movie_meta($movie['genre'], $movie['year'])) ?></p>
                 <div class="mt-3 flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wider text-stone-600">
-                  <span>IMDb <?= e((string) $movie['imdb_rating']) ?></span>
+                  <span>IMDb <?= e(display_text($movie['imdb_rating'])) ?></span>
                   <span><?= (int) $movie['runtime_minutes'] ?> min</span>
                 </div>
               </div>

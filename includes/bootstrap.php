@@ -40,6 +40,23 @@ function movie_poster_url(?string $url): string
     return $highResolution ?: $source;
 }
 
+function display_text(mixed $value, string $fallback = '—'): string
+{
+    $text = trim((string) $value);
+
+    return $text === '' ? $fallback : $text;
+}
+
+function movie_meta(mixed $genre, mixed $year): string
+{
+    $parts = array_values(array_filter(
+        [trim((string) $genre), trim((string) $year)],
+        static fn (string $part): bool => $part !== ''
+    ));
+
+    return $parts ? implode(' · ', $parts) : '—';
+}
+
 function ensure_csrf_token(): string
 {
     if (empty($_SESSION['csrf_token'])) {

@@ -172,10 +172,10 @@ function createCard(card) {
   footer.className = 'film-card__footer';
   const title = document.createElement('h2');
   title.className = 'film-card__title';
-  title.textContent = card.title || 'Film';
+  title.textContent = card.title || 'Film sans titre';
   const meta = document.createElement('p');
   meta.className = 'film-card__meta';
-  meta.textContent = [card.year, card.genre].filter(Boolean).join(' · ') || '\u00a0';
+  meta.textContent = [card.year, card.genre].filter(Boolean).join(' · ') || '—';
   footer.append(title, meta);
 
   const bar = document.createElement('span');

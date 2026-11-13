@@ -153,8 +153,8 @@ render_start('Profil', 'profile', '../');
                   <img data-poster-fallback src="<?= e($card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
                 </div>
                 <div class="p-3">
-                  <p class="truncate text-xs font-semibold text-white"><?= e($card['title']) ?></p>
-                  <p class="mt-1 truncate text-[10px] text-stone-500"><?= e($card['rarity']) ?> · x<?= (int) $card['quantity'] ?></p>
+                  <p class="truncate text-xs font-semibold text-white"><?= e(display_text($card['title'], 'Film sans titre')) ?></p>
+                  <p class="mt-1 truncate text-[10px] text-stone-500"><?= e(display_text($card['rarity'], 'Carte')) ?> · x<?= (int) $card['quantity'] ?></p>
                 </div>
               </button>
             <?php endforeach; ?>

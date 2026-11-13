@@ -118,10 +118,10 @@ function openMovieDialog(card) {
     : null;
 
   movieDialogPoster.src = movie.poster || '';
-  movieDialogPoster.alt = `Affiche du film ${movie.title}`;
+  movieDialogPoster.alt = `Affiche du film ${movie.title || 'Film sans titre'}`;
   movieDialogRarity.textContent = movie.rarity || 'Rareté inconnue';
-  movieDialogEyebrow.textContent = [movie.year, movie.genre].filter(Boolean).join(' · ');
-  movieDialogTitle.textContent = movie.title;
+  movieDialogEyebrow.textContent = [movie.year, movie.genre].filter(Boolean).join(' · ') || '—';
+  movieDialogTitle.textContent = movie.title || 'Film sans titre';
   movieDialogImdb.textContent = movie.imdbRating ? `${movie.imdbRating}/10` : '—';
   movieDialogMeta.textContent = movie.metaScore ? `${Math.round(movie.metaScore)}/100` : '—';
   movieDialogRuntime.textContent = movie.runtime ? `${movie.runtime} min` : '—';

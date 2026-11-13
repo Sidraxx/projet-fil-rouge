@@ -153,15 +153,15 @@ render_start('Deck', 'deck', '../');
 
           <ul id="deck-list" data-empty-message="Le deck est vide. Ajoutez des cartes depuis votre collection." class="mt-4 flex gap-4 overflow-x-auto pb-2">
             <?php foreach ($deckCards as $card): ?>
-              <li data-deck-card data-movie-id="<?= $card['id'] ?>" data-qty="<?= $card['quantity'] ?>" data-title="<?= e((string) $card['title']) ?>" data-poster="<?= e((string) $card['poster']) ?>" data-rarity="<?= e((string) $card['rarity']) ?>"
+              <li data-deck-card data-movie-id="<?= $card['id'] ?>" data-qty="<?= $card['quantity'] ?>" data-title="<?= e(display_text($card['title'], 'Film sans titre')) ?>" data-poster="<?= e((string) $card['poster']) ?>" data-rarity="<?= e((string) $card['rarity']) ?>"
                   class="flex w-28 shrink-0 flex-col gap-2">
                 <div class="relative aspect-[2/3] overflow-hidden rounded-xl border border-white/10 bg-stone-900">
                   <img data-poster-fallback src="<?= e((string) $card['poster']) ?>" alt="" loading="lazy" class="h-full w-full object-cover">
                   <span class="absolute bottom-1.5 right-1.5 rounded-full border border-white/15 bg-black/75 px-2 py-0.5 text-[10px] font-semibold text-white">x<?= $card['quantity'] ?></span>
                 </div>
                 <div class="min-w-0">
-                  <p class="truncate text-xs font-semibold text-stone-100" title="<?= e((string) $card['title']) ?>"><?= e((string) $card['title']) ?></p>
-                  <p class="text-[11px] font-semibold text-stone-400"><?= e((string) $card['rarity']) ?></p>
+                  <p class="truncate text-xs font-semibold text-stone-100" title="<?= e(display_text($card['title'], 'Film sans titre')) ?>"><?= e(display_text($card['title'], 'Film sans titre')) ?></p>
+                  <p class="text-[11px] font-semibold text-stone-400"><?= e(display_text($card['rarity'], 'Carte')) ?></p>
                 </div>
                 <button type="button" data-remove-deck class="w-full rounded-lg border border-white/10 px-2 py-1.5 text-xs font-medium text-stone-400 transition hover:border-amber-400/50 hover:bg-amber-400/10 hover:text-amber-300">Retirer</button>
               </li>
@@ -180,7 +180,7 @@ render_start('Deck', 'deck', '../');
 
           <div id="available-grid" class="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8">
             <?php foreach ($available as $card): ?>
-              <?php $style = $rarityStyles[$card['rarity']] ?? $rarityStyles['Commune']; $title = (string) $card['title']; ?>
+              <?php $style = $rarityStyles[$card['rarity']] ?? $rarityStyles['Commune']; $title = display_text($card['title'], 'Film sans titre'); ?>
               <article
                 data-available-card
                 data-movie-id="<?= $card['id'] ?>"

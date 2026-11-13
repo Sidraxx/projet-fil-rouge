@@ -77,8 +77,8 @@ render_start('Combat', 'battle', '../');
                   <span class="absolute bottom-2 right-2 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] text-stone-300">x<?= (int) $card['quantity'] ?></span>
                 </div>
                 <div class="p-3">
-                  <h2 class="truncate text-sm font-semibold text-stone-100"><?= e($card['title']) ?></h2>
-                  <p class="mt-1 truncate text-xs text-stone-500"><?= e($card['genre'] ?? 'Drama') ?></p>
+                  <h2 class="truncate text-sm font-semibold text-stone-100"><?= e(display_text($card['title'], 'Film sans titre')) ?></h2>
+                  <p class="mt-1 truncate text-xs text-stone-500"><?= e(display_text($card['genre'], 'Genre inconnu')) ?></p>
                 </div>
               </button>
             <?php endforeach; ?>
@@ -101,8 +101,8 @@ render_start('Combat', 'battle', '../');
                   <?php else: ?>
                     <span><?= e(mb_strtoupper(mb_substr($card['title'], 0, 2))) ?></span>
                   <?php endif; ?>
-                  <strong><?= e($card['title']) ?></strong>
-                  <small><?= e($card['genre'] ?? 'Genre inconnu') ?></small>
+                  <strong><?= e(display_text($card['title'], 'Film sans titre')) ?></strong>
+                  <small><?= e(display_text($card['genre'], 'Genre inconnu')) ?></small>
                 </div>
               <?php endforeach; ?>
             </div>

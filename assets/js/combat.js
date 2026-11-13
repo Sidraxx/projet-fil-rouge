@@ -79,7 +79,7 @@ function renderCard(card, index, playerCard) {
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-semibold">${title}</p>
         <p class="mt-0.5 truncate text-xs text-stone-500">
-          ${escapeHtml(card.genre)} · ${escapeHtml(card.passive.name)}
+          ${escapeHtml(card.genre || 'Genre inconnu')} · ${escapeHtml(card.passive.name)}
         </p>
         <p class="mt-1 truncate text-[10px] text-emerald-300/70">
           Fort : ${escapeHtml(card.strengths.join(', '))}

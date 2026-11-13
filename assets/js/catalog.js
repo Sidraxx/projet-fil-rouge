@@ -16,10 +16,10 @@ function openCatalogDialog(card) {
 
   const poster = document.querySelector('#catalog-dialog-poster');
   poster.src = movie.poster || '';
-  poster.alt = `Affiche du film ${movie.title}`;
+  poster.alt = `Affiche du film ${movie.title || 'Film sans titre'}`;
   document.querySelector('#catalog-dialog-rarity').textContent = movie.rarity || 'Rareté inconnue';
-  document.querySelector('#catalog-dialog-eyebrow').textContent = [movie.year, movie.genre].filter(Boolean).join(' · ');
-  document.querySelector('#catalog-dialog-title').textContent = movie.title;
+  document.querySelector('#catalog-dialog-eyebrow').textContent = [movie.year, movie.genre].filter(Boolean).join(' · ') || '—';
+  document.querySelector('#catalog-dialog-title').textContent = movie.title || 'Film sans titre';
   document.querySelector('#catalog-dialog-imdb').textContent = movie.imdbRating ? `${movie.imdbRating}/10` : '—';
   document.querySelector('#catalog-dialog-meta').textContent = movie.metaScore ? `${Math.round(movie.metaScore)}/100` : '—';
   document.querySelector('#catalog-dialog-runtime').textContent = movie.runtime ? `${movie.runtime} min` : '—';
