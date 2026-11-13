@@ -28,7 +28,7 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').match
 const packCount = document.querySelector('#pack-count');
 const packNext = document.querySelector('#pack-next');
 const PACK_LIMIT = Number(packCount.dataset.limit);
-const PACK_REFILL_MS = 5 * 60 * 1000;
+const PACK_REFILL_MS = Number(packCount.dataset.refillSeconds) * 1000;
 let packsAvailable = Number(packCount.dataset.available);
 let nextPackAt = packCount.dataset.nextIn !== '' ? Date.now() + Number(packCount.dataset.nextIn) * 1000 : null;
 

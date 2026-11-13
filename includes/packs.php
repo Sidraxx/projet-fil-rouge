@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 const PACK_LIMIT = 10;
-const PACK_REFILL_SECONDS = 300;
+const PACK_REFILL_SECONDS = 600;
 
 /**
  * Recalcule les paquets disponibles (recharge à la demande, sans cron).
