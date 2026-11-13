@@ -29,6 +29,8 @@ $databaseConfig = [
  */
 function database(): PDO
 {
+    global $databaseConfig;
+
     static $connection = null;
 
     if ($connection instanceof PDO) {
